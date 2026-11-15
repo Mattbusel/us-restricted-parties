@@ -1,0 +1,50 @@
+name: build
+
+# Rebuilds the five lists from the official sources every day and publishes a new
+# release only when a list changed, so releases/latest/download/<file> is always current.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test
+        run: python -m unittest discover -s tests
+      - name: Download the previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p prev
+          gh release download --repo "$GITHUB_REPOSITORY" --dir prev --pattern '*.jsonl' --pattern manifest.json || echo "no previous release"
+      - name: Build
+        run: python build.py --out dist --prev prev
+      - name: Publish when a list changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          new=$(jq -r .content_sha256 dist/manifest.json)
+          old=$(jq -r .content_sha256 prev/manifest.json 2>/dev/null || echo none)
+          cat dist/CHANGES.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$new" = "$old" ]; then
+            echo "No list changed since the latest release." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          day=$(date -u +%Y-%m-%d)
+          tag="data-$day"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then tag="$tag-$(date -u +%H%M)"; fi
+          gh release create "$tag" dist/*.jsonl dist/manifest.json dist/CHANGES.md \
+            --repo "$GITHUB_REPOSITORY" --title "Lists as of $day" --notes-file dist/CHANGES.md --latest

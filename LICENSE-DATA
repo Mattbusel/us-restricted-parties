@@ -1,0 +1,19 @@
+Data license: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+The files published as release assets of this repository (us_dod_1260h.jsonl, us_far_889.jsonl,
+us_fcc_covered.jsonl, us_dhs_uflpa.jsonl, us_biosecure.jsonl, all.jsonl, manifest.json, CHANGES.md)
+are compiled by Tensorust LLC and licensed under CC BY 4.0. You may use them commercially, in
+screening systems and in derived datasets, as long as you give credit:
+
+    "US Restricted Parties feed by Tensorust LLC (https://github.com/Mattbusel/us-restricted-parties), CC BY 4.0"
+
+The underlying lists are works of the United States Government (Department of Defense, FAR Council,
+Federal Communications Commission, Department of Homeland Security) and are in the public domain.
+The license covers the compilation: the parsing into entities, aliases and subsidiaries, the
+record identifiers and the Senzing formatting.
+
+The code in this repository (build.py, tests) is MIT licensed, see LICENSE.
+
+This feed is provided as is, without warranty. It is not legal advice. Always confirm a match
+against the official source linked in each record's SOURCE_URL.
