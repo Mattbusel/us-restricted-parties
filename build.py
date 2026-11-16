@@ -268,7 +268,14 @@ def fr_paragraphs(raw):
     t = decode(raw)
     m = re.search(r'<pre>([\s\S]*?)</pre>', t)
     t = html.unescape(re.sub(r'<(?!bullet>)[^>]+>', '', m.group(1) if m else t))
-    return [p for p in re.split(r'\n\s*\n', t) if p.strip()]
+    paras = [p for p in re.split(r'\n\s*\n', t) if p.strip()]
+    # Some notices start the next entity right after a bullet with no blank line,
+    # e.g. "...(Section 1260H(g)(3)(A)).\nChina COSCO SHIPPING Corporation Limited (...".
+    # Split there; a chunk that is really prose is still dropped by is_prose().
+    out = []
+    for p in paras:
+        out += [q for q in re.split(r'(?<=\)\.)\n(?=[A-Z])(?!Section\b)|\n(?=[ \t]*<bullet>)', p) if q.strip()]
+    return out
 
 
 def is_prose(flat):

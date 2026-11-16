@@ -73,6 +73,19 @@ Each line is one Senzing record:
 
 `NAME_ORG` at the top level is the primary name, so readers that ignore `NAMES` still get it. `RECORD_ID`s are derived from the name and stay stable from build to build. `INCLUDES_AFFILIATES: true` marks entries whose listing covers unnamed subsidiaries or affiliates (Section 889, Hoshine, XPCC): screen those by ownership, not by name alone.
 
+## Check your own list
+
+Screen a CSV of company names against the current files in one command (Python 3.9+, standard library only):
+
+```
+curl -sLO https://raw.githubusercontent.com/Mattbusel/us-restricted-parties/main/tools/check_names.py
+python check_names.py vendors.csv            # first column = name; --column NAME to pick one
+```
+
+Each hit prints the list, the listed name, the parent for a named subsidiary and the government source URL.
+`tools/watchman_gap.py` asks a running Watchman for every record in these files and reports which ones your current
+lists already match, so you can see the gap before loading anything.
+
 ## Build it yourself
 
 Python 3.10+, standard library only:

@@ -63,6 +63,27 @@ class Sources(unittest.TestCase):
         self.assertIn('Kiekert USA Inc.', norinco)  # source typo "Co., Ltd. . Kiekert"
         self.assertEqual(len(removed), 10)
 
+    def test_1260h_entry_without_blank_line_before_or_after(self):
+        # FR Doc 2026-11571, page 35191: COSCO SHIPPING follows the CCTC bullet with no blank line and runs
+        # straight into its own bullet; China Unicom follows the CTG bullet the same way.
+        raw = ('<pre>The Deputy Secretary of Defense has determined that the following entities qualify:\n\n'
+               '    <bullet> CCTC is directly controlled by SASAC (Section \n1260H(g)(2)(B)(i)(I)).\n'
+               'China COSCO SHIPPING Corporation Limited (COSCO SHIPPING) (and COSCO \n'
+               'SHIPPING subsidiaries: China Ocean Shipping Company Ltd., COSCO \n'
+               'SHIPPING (North America) Inc., COSCO SHIPPING Logistics Supply Chain \n'
+               'Co., Ltd., Shanghai Ship and Shipping Research)\n'
+               '    <bullet> COSCO SHIPPING is directly owned and controlled by SASAC; \n'
+               'it officially acts on behalf of the PLA (Section 1260H(g)(2)(B)(i)(I)). COSCO SHIPPING \n'
+               'is a military-civil fusion contributor (Section 1260H(g)(3)(A)).\n'
+               '    <bullet> CTG is directly owned and controlled by SASAC (Section \n1260H(g)(2)(B)(i)(I)).\n'
+               'China United Network Communications Group Co., Ltd. (China Unicom) (and \n'
+               'China Unicom subsidiaries: China Unicom (Hong Kong) Limited)\n\n'
+               '    <bullet> China Unicom is directly controlled by SASAC (Section \n1260H(g)(2)(B)(i)(I)).\n</pre>')
+        ents, _ = build.parse_1260h_list(build.fr_paragraphs(raw.encode()))
+        self.assertEqual([e.split(' (')[0] for e in ents],
+                         ['China COSCO SHIPPING Corporation Limited', 'China United Network Communications Group Co., Ltd.'])
+        self.assertIn('COSCO SHIPPING (North America) Inc.', build.parse_entry(ents[0])['subsidiaries'])
+
     def test_fcc_named_entities(self):
         page = (FIX / 'fcc_excerpt.html').read_bytes()
         with mock.patch.object(build, 'fetch', return_value=page):
