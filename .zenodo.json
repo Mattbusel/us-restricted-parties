@@ -1,0 +1,40 @@
+{
+  "upload_type": "dataset",
+  "title": "US Restricted Parties: DoD 1260H, Section 889, FCC Covered List, UFLPA and BIOSECURE (Senzing JSON Lines)",
+  "description": "<p>Five US government restricted-party lists that are not in the Consolidated Screening List, rebuilt from the official sources and published as Senzing-format JSON Lines: the DoD Chinese Military Companies list (Section 1260H, with named subsidiaries and later removals applied), the Section 889 covered telecom and video surveillance companies (FAR 52.204-25), the FCC Covered List, the DHS UFLPA Entity List, and an interim BIOSECURE list derived from the 1260H biotechnology listings.</p><p>A daily GitHub Action rebuilds the lists and publishes a new release only when a list changes, so each Zenodo version matches one change to the lists. Each version archives the builder (build.py), its tests and the source excerpts they run against, at the tag that produced the release. The built files for that version (per-list JSONL, all.jsonl, manifest.json with counts, hashes and source documents, and CHANGES.md with the names added and removed) are attached to the matching GitHub release. The current files are always at https://github.com/Mattbusel/us-restricted-parties/releases/latest. The files load directly into Senzing and moov-io/watchman.</p><p>Data: CC BY 4.0, credit \"US Restricted Parties feed by Tensorust LLC\". Code: MIT. The Tensorust Exposure Ledger expands each listed parent into the US subsidiaries that receive federal money and scores federal research awards against these lists: https://tensorust.com/intelligence/#banned-vendor-exposure</p>",
+  "creators": [
+    {"name": "Busel, Matthew", "affiliation": "Tensorust LLC"},
+    {"name": "Tensorust LLC"}
+  ],
+  "license": "cc-by-4.0",
+  "access_right": "open",
+  "keywords": [
+    "restricted parties",
+    "sanctions screening",
+    "export controls",
+    "Section 1260H",
+    "Chinese military companies",
+    "Section 889",
+    "FAR 52.204-25",
+    "FCC Covered List",
+    "UFLPA",
+    "forced labor",
+    "BIOSECURE",
+    "research security",
+    "supply chain risk",
+    "Senzing",
+    "entity resolution",
+    "watchman",
+    "KYC",
+    "open data"
+  ],
+  "related_identifiers": [
+    {"identifier": "https://github.com/Mattbusel/us-restricted-parties/releases/latest", "relation": "isSupplementedBy", "resource_type": "dataset", "scheme": "url"},
+    {"identifier": "https://tensorust.com/intelligence/#banned-vendor-exposure", "relation": "isSupplementedBy", "resource_type": "dataset", "scheme": "url"},
+    {"identifier": "https://tensorust.com/datasets/exposure-ledger/", "relation": "isSourceOf", "resource_type": "dataset", "scheme": "url"},
+    {"identifier": "https://www.federalregister.gov/", "relation": "isDerivedFrom", "scheme": "url"},
+    {"identifier": "https://www.ecfr.gov/current/title-48/section-52.204-25", "relation": "isDerivedFrom", "scheme": "url"},
+    {"identifier": "https://www.fcc.gov/supplychain/coveredlist", "relation": "isDerivedFrom", "scheme": "url"},
+    {"identifier": "https://www.dhs.gov/uflpa-entity-list", "relation": "isDerivedFrom", "scheme": "url"}
+  ]
+}
