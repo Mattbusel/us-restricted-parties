@@ -48,3 +48,16 @@ jobs:
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then tag="$tag-$(date -u +%H%M)"; fi
           gh release create "$tag" dist/*.jsonl dist/manifest.json dist/CHANGES.md \
             --repo "$GITHUB_REPOSITORY" --title "Lists as of $day" --notes-file dist/CHANGES.md --latest
+      # Mirrors the lists to huggingface.co/datasets/tensorust/us-restricted-parties (parquet split per list plus the
+      # Senzing files). hf_publish.py uploads only when the dataset does not already hold these lists, so this also
+      # catches up after a missed day. Skipped until the HF_TOKEN repository secret (a write token) is added.
+      - name: Mirror to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "HF_TOKEN secret not set; Hugging Face mirror skipped." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          pip install --quiet "huggingface_hub>=0.24" "pyarrow>=15"
+          python hf_publish.py --dist dist --repo tensorust/us-restricted-parties
