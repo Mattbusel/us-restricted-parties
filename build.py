@@ -378,8 +378,49 @@ FCC_NAME = re.compile(r'(?:produced|provided|supplied)(?:,\s*directly or indirec
                       r'(?:\s*,(?!\s*(?:Inc|Ltd|LLC|Corp)\b)|\s+subject to|\s+or any of its|\s+to the extent|\s+including|\s*\.?$)')
 
 
+# Footnote markers on the FCC Covered List page. The page marks category entries with
+# symbols (the power inverter entry carries a pound sign, the drone entry a double dagger
+# and #) and explains each in a footnote below the table. Left in the text they read like
+# encoding damage, so they are taken out of `entry` and the footnote goes in `footnotes`.
+FCC_MARKER = re.compile('[\u2020\u2021\u00b1\u00a3\u00a5\u00a7\u00b6\u00b9\u00b2\u00b3#^]+')
+
+
+def fcc_footnotes(page):
+    """Footnote legends after the first table: {marker: text}."""
+    notes = {}
+    tail = page.split('</table>', 1)[-1]
+    for p in re.findall(r'<p[\s\S]*?</p>', tail):
+        t = raw_text(p)
+        m = re.match(FCC_MARKER.pattern + r'|\*+', t)
+        if m and len(t) > len(m.group(0)) + 10:
+            notes.setdefault(m.group(0), clean(t[len(m.group(0)):])[:400])
+    return notes
+
+
+def raw_text(h):
+    """Tag-free text before NFKC, which would turn a superscript marker into a digit."""
+    return re.sub(r'\s+', ' ', html.unescape(re.sub(r'<[^>]+>', ' ', h))).strip()
+
+
+def fcc_category(td, d, footnotes):
+    desc = raw_text(td)
+    markers = []
+    for m in FCC_MARKER.finditer(desc):
+        if m.group(0) not in markers:
+            markers.append(m.group(0))
+    text = clean(FCC_MARKER.sub(' ', desc))
+    text = re.sub(r'\s+([,.;:)\u2014])', r'\1', text)
+    text = re.sub(r'([,;])(?=[^\s])', r'\1 ', text)
+    row = dict(entry=text[:400], date=d)
+    notes = [footnotes[k] for k in markers if k in footnotes]
+    if notes:
+        row['footnotes'] = notes
+    return row
+
+
 def pull_fcc():
     page = decode(fetch(FCC_URL))
+    footnotes = fcc_footnotes(page)
     table = re.findall(r'<table[\s\S]*?</table>', page)[0]  # later tables are Conditional Approvals
     rows, categories = [], []
     for tr in re.findall(r'<tr[\s\S]*?</tr>', table):
@@ -392,7 +433,7 @@ def pull_fcc():
             continue
         m = FCC_NAME.search(desc)
         if not m:
-            categories.append(dict(entry=desc[:400], date=d))
+            categories.append(fcc_category(tds[0], d, footnotes))
             continue
         name = m.group(1).strip().rstrip('.').strip()
         for n in re.split(r'\s+and its wholly-owned subsidiary\s+', name):

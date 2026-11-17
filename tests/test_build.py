@@ -94,6 +94,23 @@ class Sources(unittest.TestCase):
         self.assertIn('ComNet (USA) LLC', names)
         self.assertEqual(len(notes['category_entries']), 4)  # routers, drones, ... have no named company
 
+    def test_fcc_category_text_has_no_footnote_markers(self):
+        # The full page as archived on 2026-11-07: the power inverter entry carries a pound
+        # sign footnote marker that used to end up in the category text.
+        page = (FIX / 'fcc_page_2026-11-07.html').read_bytes()
+        with mock.patch.object(build, 'fetch', return_value=page):
+            rows, notes = build.pull_fcc()
+        self.assertIn('Huawei Technologies Company', [r['text'] for r in rows])
+        cats = notes['category_entries']
+        for c in cats:
+            self.assertIsNone(build.FCC_MARKER.search(c['entry']), c['entry'])
+            self.assertNotIn('\u00a3', c['entry'])
+        inv = next(c for c in cats if c['entry'].startswith('Foreign-produced power inverters'))
+        self.assertTrue(inv['entry'].startswith('Foreign-produced power inverters, except power inverters which have'), inv['entry'])
+        self.assertTrue(any(f.startswith('For purposes of inclusion of power inverters') for f in inv['footnotes']), inv)
+        uas = next(c for c in cats if c['entry'].startswith('Uncrewed aircraft systems'))
+        self.assertTrue(any('UAS' in f for f in uas['footnotes']), uas)
+
     def test_uflpa_rows(self):
         page = (FIX / 'uflpa_excerpt.html').read_bytes() * 6  # the parser insists on at least 50 rows
         with mock.patch.object(build, 'fetch', return_value=page):

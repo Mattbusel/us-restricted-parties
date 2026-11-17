@@ -83,7 +83,9 @@ affiliates, so a name match is not enough. `manifest.json` records the eCFR date
 
 The Covered List also covers whole product categories (foreign-made drones, routers, power
 inverters, robotic devices). They name no company, so they are in `manifest.json` under
-`notes.category_entries` with their dates instead of in the records.
+`notes.category_entries` with their dates instead of in the records. The page marks these entries
+with footnote symbols (a pound sign, daggers, `#`, a superscript); those are taken out of `entry`, and the
+footnote each one points to is in that entry's `footnotes` list.
 
 ## us_dhs_uflpa: UFLPA Entity List
 

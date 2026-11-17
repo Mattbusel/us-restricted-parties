@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 (2026-11-16)
+
+- FCC Covered List: the category entries in `manifest.json` (`notes.category_entries`) no longer carry the
+  page's footnote markers in their text. The power inverter entry read "Foreign-produced power inverters, £
+  except ..." and the robotic devices entry "..., 3 except ..." (a superscript 3 after Unicode normalization),
+  which looked like encoding damage. The markers are removed and each entry gets a `footnotes` list with the
+  footnote text they point to. Test against the full page as archived on 2026-11-07.
+
 ## 0.3.0 (2026-11-16)
 
 - `tools/load.py`: a standard-library Python loader. `load(list)` reads the latest release (or a local file),
