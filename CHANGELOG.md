@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.2 (2026-11-17)
+
+- GLEIF downloads: goldencopy.gleif.org answers HTTP 403 for every golden copy file since 2026-11-17 17:00 UTC
+  (from GitHub Actions and elsewhere, with any headers) while its API still lists them. The build now reads the
+  file URL and publish date from the golden copy API, falls back to the same files in GLEIF's AWS Open Data mirror
+  (`s3://gleif`), and then to the per-record GLEIF API for the entities the feed needs. Downloads retry 429 and 5xx
+  with backoff and go through a `.part` file.
+- A failed or stale affiliates build fails the workflow (exit 2, error annotation) instead of re-serving the
+  previous feed under a new release. `affiliates.manifest.json` and `manifest.json` carry `data_date`,
+  `data_as_of`, `stale`, `gleif_route` and `gleif_coverage`, and the day of the GLEIF data is part of the release
+  decision.
+- A company named on several lists keeps all its list hits. Entries on different lists that share an exact name
+  are one party, so Huawei and Hikvision (Entity List and 1260H) are matched to their LEIs instead of both
+  entries being dropped as ambiguous, and DJI's 1260H entry takes the LEI of its Entity List entry
+  (`same_party_on_other_list`). Regression tests for Huawei, Hikvision and DJI.
+
 ## 0.4.1 (2026-11-17)
 
 - Affiliates are split into `affiliates.covered.senzing.jsonl` (definitely or possibly 50 percent owned: screen

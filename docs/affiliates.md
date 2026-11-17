@@ -43,6 +43,11 @@ them.
    order: the LEI printed on the SDN entry; a registration number on the entry that equals the registration
    number in GLEIF in the same country; or an exact normalized name (legal, other or transliterated GLEIF name)
    in the same country that is unique on both sides. The method is recorded per seed in the manifest counts.
+   Entries on different lists that share an exact normalized name in a compatible country are one party (Huawei
+   is on the Entity List, the 1260H list, Section 889 and the FCC Covered List), so a name they share is not
+   ambiguous, every one of those entries keeps its match, and an entry that cannot be matched alone takes the LEI
+   its party's other entries agree on (`same_party_on_other_list`; DJI is "DJI" on the Entity List and "Shenzhen
+   DJI Technology Co., Ltd." on the 1260H list). Two entries of one list that share a name stay ambiguous.
 3. **Links**: GLEIF Level 2 relationship records reachable from a matched seed:
    - `IS_DIRECTLY_CONSOLIDATED_BY`: accounting consolidation, which means control. When the child reported an
      accounting consolidation percentage, it is used as the share; otherwise the link has no share.
@@ -116,14 +121,32 @@ GLEIF has one; the legal name in its own script is an alias. `INPUTS_SHA256` is 
 in `affiliates.manifest.json` (CSL, GLEIF files and the five list files), so a record can be traced to the exact
 inputs it was built from. GLEIF republishes its files several times a day, so that hash changes on days when no
 record does; the build decides whether to publish a release from `records_sha256`, a hash of the records without
-it, and publishes only when a list or a record changed.
+it, plus the day of the GLEIF data, and publishes when a list or a record changed or the GLEIF data is of a new
+day.
 
 `affiliates.changes.jsonl` has one event per record per build: `added`, `removed` or `verdict_changed` (with the
 verdicts before and after). `CHANGES.md` in the release summarizes them. A release is published only when a list or a record
 changed, and a file with no records in that build (most often `affiliates.changes.jsonl`) is left out of it.
 
-When a source cannot be downloaded (GLEIF's file server, for example), the build keeps the previous records and
-says so in `affiliates.manifest.json` (`error`) and in `CHANGES.md`; the lists are still published.
+## Data date and failures
+
+`affiliates.manifest.json` (and the `affiliates` entry of `manifest.json`) says how current the feed is:
+
+| Field | Meaning |
+|---|---|
+| `data_date` | day of the GLEIF publish the records were built from (the older of the two GLEIF files) |
+| `data_as_of` | `gleif_rr` and `gleif_lei2` publish times, and when the CSL was downloaded |
+| `stale` | always `false` in a published release: a stale build is never published |
+| `gleif_route` | `golden-copy` (goldencopy.gleif.org), `aws-open-data` (GLEIF's mirror in the AWS Open Data registry, `s3://gleif`) or `gleif-api` (per record) |
+| `gleif_coverage` | `full`, or `partial` for the per-record API route, which looks up only the LEIs on list entries, the LEIs in the previous feed, the names on this repository's lists, and the companies below them |
+
+GLEIF is read from the golden copy server first. Since 2026-11-17 that server answers HTTP 403 for its files (its
+API still lists them), so the build then takes the same files from GLEIF's AWS mirror, and if that fails too, from
+the GLEIF API one record at a time. Downloads send a descriptive User-Agent, retry 429 and 5xx answers with
+backoff, and do not retry other 4xx answers. When no route works, or the GLEIF data is more than 48 hours old
+(`--max-age-hours`), `affiliates.py` exits with code 2, writes no affiliates file, and prints a GitHub error
+annotation; the workflow then fails and publishes nothing, so the latest release keeps its own, older
+`data_date`. A previous feed is never republished as if it were new.
 
 ## Load it into Watchman
 

@@ -14,7 +14,12 @@ Ownership and control edges
   - parent and subsidiary links that the 1260H notices state (share not stated).
 
 Seeds are matched to LEIs by the LEI an SDN entry carries, by a registration number plus country, or by an exact
-normalized legal or other name plus country that is unique on both sides. Every match records its method.
+normalized legal or other name plus country that is unique on both sides. Entries on different lists that share a
+name are one party and all keep the match. Every match records its method.
+
+GLEIF files come from the golden copy server, else GLEIF's AWS Open Data mirror, else the per-record GLEIF API. A
+failed download or GLEIF data older than --max-age-hours ends the run with exit code 2 and no affiliates files;
+affiliates.manifest.json carries the data date (data_date, data_as_of) of every feed it describes.
 
 Rules (ownership-rules): ofac-50 over the SDN List, bis-affiliates over the Entity List, MEU List and 744.8 SDNs,
 and any-list-50 over this feed's own lists as a screening signal (those lists carry no ownership rule of their own).
@@ -39,15 +44,26 @@ List company 50 percent owned by an SDN is blocked under ofac-50); LISTED_ON say
 
 Each record is evidence for a compliance review, not a determination that the entity is sanctioned or restricted.
 """
-import argparse, csv, hashlib, io, json, re, sys, time, unicodedata, urllib.request, zipfile
+import argparse, contextlib, csv, gzip, hashlib, io, json, re, sys, time, unicodedata, zipfile
+import urllib.error, urllib.parse, urllib.request
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ownership_rules import __version__ as ENGINE_VERSION, evaluate, load_rule
 
 CSL_URL = 'https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json'
-GLEIF_URL = 'https://goldencopy.gleif.org/api/v2/golden-copies/publishes/{kind}/latest.csv'
+# GLEIF golden copy, three routes in order. (1) The golden copy API names the latest publish and its file. (2) GLEIF's
+# own mirror of the same files in the AWS Open Data registry (s3://gleif, registry.opendata.aws/lei), used when the
+# golden copy file server refuses the download (it has answered HTTP 403 for every client since 2026-11-17 17:00
+# UTC while its API still lists the files). (3) The GLEIF API per record, for the entities this feed needs.
+GLEIF_PUBLISH_URL = 'https://goldencopy.gleif.org/api/v2/golden-copies/publishes/{kind}/latest'
+GLEIF_S3 = 'https://gleif.s3.eu-central-1.amazonaws.com'
+GLEIF_S3_KIND = {'lei2': 'lei', 'rr': 'rr'}
+GLEIF_API = 'https://api.gleif.org/api/v1'
+GLEIF_KINDS = ('rr', 'lei2')
+# The feed is published only from GLEIF data at most this old (hours since the GLEIF publish).
+MAX_AGE_HOURS = 48
 FEED_URL = 'https://github.com/Mattbusel/us-restricted-parties'
 UA = 'us-restricted-parties affiliates build (+https://github.com/Mattbusel/us-restricted-parties)'
 DATA_SOURCE = 'US_RESTRICTED_AFFILIATES'
@@ -106,15 +122,274 @@ def reg_key(s):
     return re.sub(r'[^A-Z0-9]', '', (s or '').upper())
 
 
-def fetch(url, dest, timeout=600):
-    req = urllib.request.Request(url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r, open(dest, 'wb') as f:
+class FetchError(RuntimeError):
+    pass
+
+
+def _request(url, headers=None):
+    h = {'User-Agent': UA, 'Accept': '*/*', 'Accept-Encoding': 'identity'}
+    h.update(headers or {})
+    return urllib.request.Request(url, headers=h)
+
+
+def http_open(url, headers=None, timeout=600, tries=4, backoff=5.0):
+    """urlopen with polite retries: 429, 5xx and network errors are retried with backoff (Retry-After honored);
+    other 4xx are not, since asking again will not change the answer."""
+    last = None
+    for attempt in range(tries):
+        try:
+            return urllib.request.urlopen(_request(url, headers), timeout=timeout)
+        except urllib.error.HTTPError as e:
+            last = e
+            if e.code != 429 and e.code < 500:
+                raise FetchError(f'HTTP {e.code} from {url}') from e
+            wait = backoff * 2 ** attempt
+            try:
+                wait = max(wait, float(e.headers.get('Retry-After') or 0))
+            except ValueError:
+                pass
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            last, wait = e, backoff * 2 ** attempt
+        if attempt < tries - 1:
+            log(f'retry {attempt + 1}/{tries - 1} in {wait:.0f}s: {url} ({last})')
+            time.sleep(wait)
+    raise FetchError(f'{url}: {last}')
+
+
+def fetch(url, dest, timeout=600, headers=None):
+    """Download to dest through a .part file, so a failed download never leaves a truncated file behind.
+    Returns the response headers."""
+    tmp = Path(str(dest) + '.part')
+    with http_open(url, headers, timeout) as r, open(tmp, 'wb') as f:
+        hdrs = dict(r.headers)
         while True:
             b = r.read(1 << 20)
             if not b:
                 break
             f.write(b)
-    return dest
+    tmp.replace(dest)
+    return hdrs
+
+
+def get_json(url, timeout=120):
+    with http_open(url, {'Accept': 'application/vnd.api+json, application/json'}, timeout) as r:
+        return json.loads(r.read().decode('utf8'))
+
+
+def iso_utc(s):
+    """'2026-11-17 16:00:00', '2026-11-17T16:00:00Z' or '20261117-1600' -> '2026-11-17T16:00:00Z'."""
+    s = (s or '').strip()
+    m = re.match(r'^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})$', s)
+    if m:
+        return f'{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:00Z'
+    m = re.match(r'^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})', s)
+    return f'{m[1]}T{m[2]}Z' if m else None
+
+
+@contextlib.contextmanager
+def open_csv(path):
+    """A text stream over a GLEIF CSV, zipped (golden copy server, API fallback) or gzipped (AWS mirror)."""
+    with open(path, 'rb') as f:
+        magic = f.read(2)
+    if magic == b'\x1f\x8b':
+        with gzip.open(path, 'rt', encoding='utf-8', newline='') as fh:
+            yield fh
+    else:
+        with zipfile.ZipFile(path) as z, z.open(z.namelist()[0]) as fh:
+            yield io.TextIOWrapper(fh, encoding='utf-8', newline='')
+
+
+def gleif_from_golden_copy(kind, dest):
+    meta = get_json(GLEIF_PUBLISH_URL.format(kind=kind))['data']
+    f = meta['full_file']['csv']
+    fetch(f['url'], dest)
+    return dict(route='golden-copy', url=f['url'], publish_date=iso_utc(meta['publish_date']),
+                record_count=f.get('record_count'), coverage='full')
+
+
+def s3_latest_key(kind, today=None, days=4):
+    """Newest golden copy CSV in GLEIF's AWS Open Data mirror: data/csv/<kind>/date=YYYY-MM-DD/time=HH:MM/..."""
+    today = today or datetime.now(timezone.utc).date()
+    for d in range(days):
+        day = (today - timedelta(days=d)).isoformat()
+        q = urllib.parse.urlencode({'list-type': '2', 'prefix': f'data/csv/{GLEIF_S3_KIND[kind]}/date={day}/'})
+        with http_open(f'{GLEIF_S3}/?{q}', timeout=60) as r:
+            keys = re.findall(r'<Key>([^<]+\.csv\.gz)</Key>', r.read().decode('utf8'))
+        if keys:
+            return sorted(keys)[-1]
+    raise FetchError(f'no {kind} file in {GLEIF_S3} for the last {days} days')
+
+
+def gleif_from_s3(kind, dest):
+    key = s3_latest_key(kind)
+    url = f'{GLEIF_S3}/{key}'
+    fetch(url, dest)
+    m = re.search(r'/(\d{8}-\d{4})-gleif-goldencopy', key)
+    return dict(route='aws-open-data', url=url, publish_date=iso_utc(m[1]) if m else None, coverage='full')
+
+
+def fetch_gleif(cache):
+    """Download the Level 2 relationship (rr) and Level 1 (lei2) golden copies from the golden copy server, else
+    from GLEIF's AWS mirror. Returns {kind: (path, meta)}; both files come from the same route."""
+    errors = []
+    for route, fn, ext in (('golden-copy', gleif_from_golden_copy, 'zip'), ('aws-open-data', gleif_from_s3, 'gz')):
+        out = {}
+        try:
+            for kind in GLEIF_KINDS:
+                dest = Path(cache) / f'gleif-{kind}.csv.{ext}'
+                log('GLEIF', kind, 'via', route)
+                out[kind] = (dest, fn(kind, dest))
+            return out
+        except Exception as e:  # noqa: BLE001  (try the next route; all failures are reported together)
+            errors.append(f'{route}: {type(e).__name__}: {e}')
+            log('GLEIF route failed:', errors[-1])
+    raise FetchError('GLEIF golden copy unavailable; ' + ' | '.join(errors))
+
+
+# ---------------------------------------------------------------- GLEIF API fallback (per record)
+
+RR_API_COLS = ['Relationship.StartNode.NodeID', 'Relationship.StartNode.NodeIDType', 'Relationship.EndNode.NodeID',
+               'Relationship.EndNode.NodeIDType', 'Relationship.RelationshipType', 'Relationship.RelationshipStatus'] + \
+              [f'Relationship.Quantifiers.{i}.{k}' for i in range(1, 6)
+               for k in ('MeasurementMethod', 'QuantifierAmount', 'QuantifierUnits')] + \
+              ['Registration.LastUpdateDate', 'Registration.ValidationSources']
+LEI_API_COLS = ['LEI', 'Entity.LegalName'] + [f'Entity.OtherEntityNames.OtherEntityName.{i}' for i in range(1, 6)] + \
+               [f'Entity.TransliteratedOtherEntityNames.TransliteratedOtherEntityName.{i}' for i in range(1, 6)] + \
+               ['Entity.LegalAddress.Country', 'Entity.HeadquartersAddress.Country',
+                'Entity.RegistrationAuthority.RegistrationAuthorityEntityID', 'Entity.EntityStatus',
+                'Registration.RegistrationStatus']
+
+
+class GleifApi:
+    """The GLEIF API, politely: one request at a time, about 50 a minute (GLEIF allows 60), retries on 429."""
+
+    def __init__(self, max_requests=4000, interval=1.2):
+        self.n, self.max, self.interval, self.last, self.publish_date = 0, max_requests, interval, 0.0, None
+
+    def get(self, path, **params):
+        if self.n >= self.max:
+            raise FetchError(f'GLEIF API request budget ({self.max}) spent')
+        wait = self.last + self.interval - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        self.n += 1
+        self.last = time.monotonic()
+        url = f'{GLEIF_API}/{path}' + ('?' + urllib.parse.urlencode(params) if params else '')
+        d = get_json(url)
+        pd = ((d.get('meta') or {}).get('goldenCopy') or {}).get('publishDate')
+        if pd:
+            self.publish_date = iso_utc(pd)
+        return d
+
+    def first_page(self, path, size=50, **params):
+        return self.get(path, **{**params, 'page[size]': size, 'page[number]': 1}).get('data') or []
+
+    def pages(self, path, **params):
+        page = 1
+        while True:
+            d = self.get(path, **{**params, 'page[size]': 200, 'page[number]': page})
+            yield from d.get('data') or []
+            pg = (d.get('meta') or {}).get('pagination') or {}
+            if page >= int(pg.get('lastPage') or 1):
+                return
+            page += 1
+
+
+def _pad(xs, n):
+    xs = list(xs)[:n]
+    return xs + [''] * (n - len(xs))
+
+
+def _lei_row(rec):
+    a = rec['attributes']
+    e, reg = a['entity'], a['registration']
+    return ([a['lei'], (e.get('legalName') or {}).get('name') or '']
+            + _pad((x['name'] for x in e.get('otherNames') or []), 5)
+            + _pad((x['name'] for x in e.get('transliteratedOtherNames') or []), 5)
+            + [(e.get('legalAddress') or {}).get('country') or '', (e.get('headquartersAddress') or {}).get('country') or '',
+               e.get('registeredAs') or '', e.get('status') or '', reg.get('status') or ''])
+
+
+def _rr_row(rec):
+    a = rec['attributes']
+    rel, reg = a['relationship'], a.get('registration') or {}
+    q = []
+    for x in (rel.get('quantifiers') or [])[:5]:
+        amt = x.get('quantifierAmount')
+        q += [x.get('measurementMethod') or '', '' if amt is None else str(amt), x.get('quantifierUnits') or '']
+    return ([rel['startNode']['id'], rel['startNode']['type'], rel['endNode']['id'], rel['endNode']['type'],
+             rel['type'], rel.get('status') or ''] + _pad(q, 15)
+            + [reg.get('lastUpdateDate') or '', reg.get('corroborationLevel') or ''])
+
+
+def _write_zip(path, cols, rows):
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(cols)
+    w.writerows(rows)
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr(Path(path).name[:-4], buf.getvalue())
+
+
+def needed_leis(seeds, prev_dir):
+    """The LEIs the feed needs without the bulk files: LEIs printed on list entries, and every LEI in the previous
+    feed (its records, their seeds and every entity and owner on their proof paths)."""
+    want = {num.strip().upper() for s in seeds for typ, num, _ in s['ids'] if typ == 'Legal Entity Number'}
+    p = Path(prev_dir) / 'affiliates.senzing.jsonl' if prev_dir else None
+    if p and p.exists():
+        for r in read_jsonl(p):
+            ids = [r.get('RECORD_ID', '')]
+            for pr in (r.get('OWNERSHIP_PROOF') or {}).values():
+                ids += pr.get('seeds', [])
+                for st in pr.get('proof', []):
+                    ids.append(st.get('entity', ''))
+                    ids += [v.get('owner', '') for v in st.get('via', [])]
+            want |= {i[4:] for i in ids if i.startswith('lei:')}
+    return want
+
+
+def gleif_from_api(seeds, prev_dir, cache, api=None, max_depth=4):
+    """Per-record fallback: Level 1 records for the needed LEIs and for the names on this feed's own lists, and the
+    child relationships below them (to max_depth), written in the golden copy CSV layout. Partial by nature: an SDN
+    or Entity List party matched only by name and absent from the previous feed is not looked up."""
+    api = api or GleifApi()
+    want = needed_leis(seeds, prev_dir)
+    names = sorted({n for s in seeds if s['list'].startswith('US_') for n in s['names'] if len(name_key(n)) >= 6})
+    lei_rows, rr_rows, have = {}, {}, set()
+
+    def load(leis):
+        leis = sorted({l for l in leis if l not in lei_rows})
+        for i in range(0, len(leis), 100):
+            for rec in api.pages('lei-records', **{'filter[lei]': ','.join(leis[i:i + 100])}):
+                lei_rows[rec['attributes']['lei']] = _lei_row(rec)
+
+    for n in names:  # the search is fuzzy and ranked: read its first page, keep exact normalized-name hits only
+        for rec in api.first_page('lei-records', **{'filter[entity.names]': n}):
+            row = _lei_row(rec)
+            if name_key(n) in {name_key(x) for x in row[1:12] if x}:
+                lei_rows[row[0]] = row
+    load(want)
+    frontier, depth = set(lei_rows), 0
+    while frontier and depth < max_depth:
+        nxt = set()
+        for lei in sorted(frontier):
+            have.add(lei)
+            for kind in ('direct-child-relationships', 'ultimate-child-relationships'):
+                for rec in api.pages(f'lei-records/{lei}/{kind}'):
+                    row = _rr_row(rec)
+                    rr_rows[tuple(row[:6])] = row
+                    if row[1] == 'LEI' and row[0] not in have:
+                        nxt.add(row[0])
+        load(nxt)
+        frontier, depth = nxt - have, depth + 1
+    out = {}
+    for kind, cols, rows in (('rr', RR_API_COLS, list(rr_rows.values())), ('lei2', LEI_API_COLS, list(lei_rows.values()))):
+        dest = Path(cache) / f'gleif-{kind}.csv.zip'
+        _write_zip(dest, cols, rows)
+        out[kind] = (dest, dict(route='gleif-api', url=GLEIF_API, publish_date=api.publish_date, coverage='partial',
+                                records=len(rows), requests=api.n))
+    log('GLEIF API fallback:', len(lei_rows), 'entities,', len(rr_rows), 'relationships,', api.n, 'requests')
+    return out
 
 
 def sha256_file(p):
@@ -184,35 +459,33 @@ def gleif_relationships(rr_zip):
     """parent LEI -> [(child LEI, kind, pct or None, last update)] for consolidation and branch links."""
     direct, ultimate, branches = [], [], []
     has_direct_parent = set()
-    with zipfile.ZipFile(rr_zip) as z:
-        name = z.namelist()[0]
-        with z.open(name) as fh:
-            for d in csv.DictReader(io.TextIOWrapper(fh, encoding='utf-8', newline='')):
-                if d['Relationship.RelationshipStatus'] != 'ACTIVE':
-                    continue
-                kind = d['Relationship.RelationshipType']
-                child, parent = d['Relationship.StartNode.NodeID'], d['Relationship.EndNode.NodeID']
-                if d['Relationship.StartNode.NodeIDType'] != 'LEI' or d['Relationship.EndNode.NodeIDType'] != 'LEI':
-                    continue
-                pct = None
-                for i in range(1, 6):
-                    if (d[f'Relationship.Quantifiers.{i}.MeasurementMethod'] == 'ACCOUNTING_CONSOLIDATION'
-                            and d[f'Relationship.Quantifiers.{i}.QuantifierUnits'] == 'PERCENTAGE'):
-                        try:
-                            v = float(d[f'Relationship.Quantifiers.{i}.QuantifierAmount'])
-                            if 0 <= v <= 100:
-                                pct = v
-                        except ValueError:
-                            pass
-                updated = (d['Registration.LastUpdateDate'] or '')[:10] or None
-                row = (parent, child, kind, pct, updated, d['Registration.ValidationSources'])
-                if kind == 'IS_DIRECTLY_CONSOLIDATED_BY':
-                    direct.append(row)
-                    has_direct_parent.add(child)
-                elif kind == 'IS_ULTIMATELY_CONSOLIDATED_BY':
-                    ultimate.append(row)
-                elif kind == 'IS_INTERNATIONAL_BRANCH_OF':
-                    branches.append(row)
+    with open_csv(rr_zip) as fh:
+        for d in csv.DictReader(fh):
+            if d['Relationship.RelationshipStatus'] != 'ACTIVE':
+                continue
+            kind = d['Relationship.RelationshipType']
+            child, parent = d['Relationship.StartNode.NodeID'], d['Relationship.EndNode.NodeID']
+            if d['Relationship.StartNode.NodeIDType'] != 'LEI' or d['Relationship.EndNode.NodeIDType'] != 'LEI':
+                continue
+            pct = None
+            for i in range(1, 6):
+                if (d[f'Relationship.Quantifiers.{i}.MeasurementMethod'] == 'ACCOUNTING_CONSOLIDATION'
+                        and d[f'Relationship.Quantifiers.{i}.QuantifierUnits'] == 'PERCENTAGE'):
+                    try:
+                        v = float(d[f'Relationship.Quantifiers.{i}.QuantifierAmount'])
+                        if 0 <= v <= 100:
+                            pct = v
+                    except ValueError:
+                        pass
+            updated = (d['Registration.LastUpdateDate'] or '')[:10] or None
+            row = (parent, child, kind, pct, updated, d['Registration.ValidationSources'])
+            if kind == 'IS_DIRECTLY_CONSOLIDATED_BY':
+                direct.append(row)
+                has_direct_parent.add(child)
+            elif kind == 'IS_ULTIMATELY_CONSOLIDATED_BY':
+                ultimate.append(row)
+            elif kind == 'IS_INTERNATIONAL_BRANCH_OF':
+                branches.append(row)
     return direct, [r for r in ultimate if r[1] not in has_direct_parent], branches
 
 
@@ -225,46 +498,99 @@ def gleif_entities(lei2_zip, want_leis, name_keys, reg_keys):
     registration index). Only rows that can matter are kept."""
     info, by_name, by_reg = {}, defaultdict(set), defaultdict(set)
     n = 0
-    with zipfile.ZipFile(lei2_zip) as z:
-        name = z.namelist()[0]
-        with z.open(name) as fh:
-            rd = csv.reader(io.TextIOWrapper(fh, encoding='utf-8', newline=''))
-            h = next(rd)
-            ix = {c: i for i, c in enumerate(h)}
-            i_lei, i_country, i_status = ix['LEI'], ix['Entity.LegalAddress.Country'], ix['Entity.EntityStatus']
-            i_reg, i_regstat = ix['Entity.RegistrationAuthority.RegistrationAuthorityEntityID'], ix['Registration.RegistrationStatus']
-            i_hq = ix['Entity.HeadquartersAddress.Country']
-            i_names = [ix[c] for c in NAME_COLS if c in ix]
-            for row in rd:
-                n += 1
-                lei = row[i_lei]
-                names = [row[i] for i in i_names if row[i]]
-                keys = {name_key(x) for x in names}
-                rk = reg_key(row[i_reg])
-                hit_name = bool(keys & name_keys)
-                hit_reg = bool(rk) and rk in reg_keys
-                if lei in want_leis or hit_name or hit_reg:
-                    info[lei] = dict(lei=lei, name=row[ix['Entity.LegalName']], names=names, country=row[i_country],
-                                     hq_country=row[i_hq], status=row[i_status], reg_id=row[i_reg],
-                                     registration_status=row[i_regstat])
-                    if hit_name:
-                        for k in keys & name_keys:
-                            by_name[k].add(lei)
-                    if hit_reg:
-                        by_reg[rk].add(lei)
+    with open_csv(lei2_zip) as fh:
+        rd = csv.reader(fh)
+        h = next(rd)
+        ix = {c: i for i, c in enumerate(h)}
+        i_lei, i_country, i_status = ix['LEI'], ix['Entity.LegalAddress.Country'], ix['Entity.EntityStatus']
+        i_reg, i_regstat = ix['Entity.RegistrationAuthority.RegistrationAuthorityEntityID'], ix['Registration.RegistrationStatus']
+        i_hq = ix['Entity.HeadquartersAddress.Country']
+        i_names = [ix[c] for c in NAME_COLS if c in ix]
+        for row in rd:
+            n += 1
+            lei = row[i_lei]
+            names = [row[i] for i in i_names if row[i]]
+            keys = {name_key(x) for x in names}
+            rk = reg_key(row[i_reg])
+            hit_name = bool(keys & name_keys)
+            hit_reg = bool(rk) and rk in reg_keys
+            if lei in want_leis or hit_name or hit_reg:
+                info[lei] = dict(lei=lei, name=row[ix['Entity.LegalName']], names=names, country=row[i_country],
+                                 hq_country=row[i_hq], status=row[i_status], reg_id=row[i_reg],
+                                 registration_status=row[i_regstat])
+                if hit_name:
+                    for k in keys & name_keys:
+                        by_name[k].add(lei)
+                if hit_reg:
+                    by_reg[rk].add(lei)
     log('GLEIF level 1 rows read:', n)
     return info, by_name, by_reg
 
 
 # ---------------------------------------------------------------- matching
 
+def seed_countries(s):
+    """Countries a seed can be in: its addresses, else (for this feed's own lists, which carry none) China, Hong
+    Kong and Macau, else unknown (empty: compatible with any country)."""
+    return s['countries'] or (OWN_COUNTRIES if s['list'].startswith('US_') else set())
+
+
+def same_party_groups(seeds):
+    """Group list entries that name the same party: entries on different lists that share an exact normalized name
+    (3 characters or more) in a compatible country. Huawei is on the Entity List, the 1260H list, Section 889 and
+    the FCC Covered List; those entries are one party, not four rival claims to the name. Two entries on the same
+    list that share a name stay apart (a list names distinct parties). Returns {src_id: group id}."""
+    ents = [s for s in seeds if s['entry_type'] == 'entity']
+    parent = {s['src_id']: s['src_id'] for s in ents}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    by_key = defaultdict(list)
+    for s in ents:
+        for k in {name_key(n) for n in s['names']}:
+            if len(k) >= 3:
+                by_key[k].append(s)
+    for group in by_key.values():
+        for i, a in enumerate(group):
+            for b in group[i + 1:]:
+                if a['list'] == b['list'] or a['src_id'] == b['src_id']:
+                    continue
+                ca, cb = seed_countries(a), seed_countries(b)
+                if ca and cb and not (ca & cb):
+                    continue
+                ra, rb = find(a['src_id']), find(b['src_id'])
+                if ra != rb:
+                    parent[rb] = ra
+    groups = {sid: find(sid) for sid in parent}
+    # A union through several names must not put two entries of one list together; if it did, undo for that group.
+    members = defaultdict(list)
+    for s in ents:
+        members[groups[s['src_id']]].append(s)
+    for root, ms in members.items():
+        lists = Counter(s['list'] for s in ms)
+        if any(n > 1 for n in lists.values()):
+            for s in ms:
+                groups[s['src_id']] = s['src_id']
+    return groups
+
+
 def match_seeds(seeds, info, by_name, by_reg):
-    """Attach an LEI to each seed where the evidence is unambiguous. Returns {src_id: (lei, method)}."""
+    """Attach an LEI to each seed where the evidence is unambiguous. Returns {src_id: (lei, method)}.
+
+    A name is ambiguous only when it is shared by different parties. Entries on several lists that name the same
+    party (same_party_groups) all keep their match, so an entity on two lists keeps both list hits; and an entry
+    matched by its own evidence passes its LEI to the other entries of its party that could not be matched alone
+    (method same_party_on_other_list)."""
     out = {}
-    lei_seeds = defaultdict(set)  # name key -> seed ids, to reject keys shared by different listed parties
+    groups = same_party_groups(seeds)
+    key_parties = defaultdict(set)  # name key -> parties naming it, to reject keys shared by different parties
     for s in seeds:
         for nm in s['names']:
-            lei_seeds[name_key(nm)].add(s['src_id'])
+            key_parties[name_key(nm)].add(groups.get(s['src_id'], s['src_id']))
     for s in seeds:
         if s['entry_type'] not in ('entity',):
             continue
@@ -287,11 +613,11 @@ def match_seeds(seeds, info, by_name, by_reg):
             out[s['src_id']] = (cands.pop(), 'registration_number_and_country')
             continue
         # 3. exact normalized name + country, unique on both sides
-        countries = s['countries'] or (OWN_COUNTRIES if s['list'].startswith('US_') else set())
+        countries = seed_countries(s)
         cands = set()
         for nm in s['names']:
             k = name_key(nm)
-            if len(k) < 6 or len(lei_seeds[k]) > 1:
+            if len(k) < 6 or len(key_parties[k]) > 1:
                 continue
             for lei in by_name.get(k, ()):
                 c = info[lei]['country']
@@ -302,6 +628,15 @@ def match_seeds(seeds, info, by_name, by_reg):
                 cands.add(lei)
         if len(cands) == 1:
             out[s['src_id']] = (cands.pop(), 'exact_name_and_country')
+    # 4. the LEI of another entry naming the same party, when that party's entries agree on one LEI
+    party_leis = defaultdict(set)
+    for sid, (lei, _) in out.items():
+        if sid in groups:
+            party_leis[groups[sid]].add(lei)
+    for s in seeds:
+        g = groups.get(s['src_id'])
+        if s['src_id'] not in out and g is not None and len(party_leis.get(g, ())) == 1:
+            out[s['src_id']] = (next(iter(party_leis[g])), 'same_party_on_other_list')
     return out
 
 
@@ -460,6 +795,14 @@ def senzing_records(seeds, matches, info, results, inputs_sha):
     return recs
 
 
+def content_sha256(manifest, records_sha, data_date):
+    """What decides whether the workflow publishes a release: the lists, the affiliates records (without the
+    per-record input hash) and the day of the GLEIF data. With the day in it, the latest release's data_date is at
+    most a day behind the last successful build, so a consumer can tell current data from stale."""
+    lists_sha = ''.join(manifest['lists'][k]['sha256'] for k in sorted(manifest['lists']))
+    return hashlib.sha256((lists_sha + records_sha + (data_date or '')).encode()).hexdigest()
+
+
 def records_digest(recs):
     """Hash of the records without INPUTS_SHA256, which changes whenever GLEIF republishes its files even when no
     record changed. This is what decides whether the build publishes a new release."""
@@ -531,45 +874,109 @@ def change_events(prev_recs, recs):
     return ev
 
 
+class StaleData(RuntimeError):
+    pass
+
+
+def cached_gleif(cache, kind):
+    """The GLEIF file of this kind already in the cache (zip from the server or the API fallback, gz from AWS)."""
+    for ext in ('zip', 'gz'):
+        p = Path(cache) / f'gleif-{kind}.csv.{ext}'
+        if p.exists():
+            return p
+    raise FileNotFoundError(f'no gleif-{kind}.csv.zip or .gz in {cache}')
+
+
+def read_meta(cache, key):
+    p = Path(cache) / f'{key}.meta.json'
+    return json.loads(p.read_text(encoding='utf8')) if p.exists() else {}
+
+
+def write_meta(cache, key, meta):
+    (Path(cache) / f'{key}.meta.json').write_text(json.dumps(meta, indent=1) + '\n', encoding='utf8')
+
+
+def check_fresh(gleif_meta, now, max_age_hours, required):
+    """The GLEIF data date: the older publish of the two files. Raises StaleData when it is unknown (and required)
+    or older than max_age_hours, so a stale feed is never published as if it were current."""
+    dates = {k: m.get('publish_date') for k, m in gleif_meta.items()}
+    if any(d is None for d in dates.values()):
+        if required:
+            raise StaleData(f'GLEIF publish date unknown: {dates}')
+        return None
+    oldest = min(dates.values())
+    age = (now - datetime.strptime(oldest, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)).total_seconds() / 3600
+    if age > max_age_hours:
+        raise StaleData(f'GLEIF data published {oldest} is {age:.0f} hours old (limit {max_age_hours:g})')
+    return oldest
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--lists', default='dist', help='directory with this build of the five list files')
     ap.add_argument('--out', default='dist')
-    ap.add_argument('--prev', default=None, help='directory with the previous release (for change events and fallback)')
+    ap.add_argument('--prev', default=None, help='directory with the previous release (for change events and the '
+                                                 'entities the GLEIF API fallback looks up)')
     ap.add_argument('--cache', default='.cache', help='where downloads go (reused when present and --offline)')
     ap.add_argument('--offline', action='store_true', help='use the files already in --cache')
+    ap.add_argument('--no-api-fallback', action='store_true', help='fail instead of using the per-record GLEIF API '
+                                                                    'when the bulk files cannot be downloaded')
+    ap.add_argument('--max-age-hours', type=float, default=MAX_AGE_HOURS,
+                    help='fail when the GLEIF data is older than this (default %(default)s)')
     a = ap.parse_args(argv)
     out, cache = Path(a.out), Path(a.cache)
     prev = Path(a.prev) if a.prev else None
     out.mkdir(parents=True, exist_ok=True)
     cache.mkdir(parents=True, exist_ok=True)
-    now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    paths = {'csl': cache / 'consolidated.json', 'rr': cache / 'gleif-rr.csv.zip', 'lei2': cache / 'gleif-lei2.csv.zip'}
-    urls = {'csl': CSL_URL, 'rr': GLEIF_URL.format(kind='rr'), 'lei2': GLEIF_URL.format(kind='lei2')}
-    error = None
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+    csl_path = cache / 'consolidated.json'
+    # Any failure below ends the run with exit code 2 and no affiliates files: the previous release's feed is never
+    # re-served as if it were new, and the workflow publishes nothing that day.
     try:
-        if not a.offline:
-            for k, p in paths.items():
-                log('download', urls[k])
-                fetch(urls[k], p)
-        inputs = {k: dict(url=urls[k], sha256=sha256_file(p), bytes=p.stat().st_size) for k, p in paths.items()}
+        if a.offline:
+            gleif = {k: (cached_gleif(cache, k), read_meta(cache, f'gleif-{k}') or dict(route='cache'))
+                     for k in GLEIF_KINDS}
+            csl_meta = read_meta(cache, 'csl') or dict(url=CSL_URL)
+        else:
+            log('download', CSL_URL)
+            fetch(CSL_URL, csl_path)
+            csl_meta = dict(url=CSL_URL, downloaded_at=now)
+            try:
+                gleif = fetch_gleif(cache)
+            except FetchError as e:
+                if a.no_api_fallback:
+                    raise
+                log('GLEIF bulk files unavailable, falling back to the per-record API:', e)
+                gleif = gleif_from_api(own_seeds(a.lists) + csl_seeds(csl_path), prev, cache)
+            write_meta(cache, 'csl', csl_meta)
+            for k, (_, m) in gleif.items():
+                write_meta(cache, f'gleif-{k}', m)
+        gleif_meta = {k: m for k, (_, m) in gleif.items()}
+        gleif_as_of = check_fresh(gleif_meta, now_dt, a.max_age_hours, required=not a.offline)
+        inputs = {'csl': dict(csl_meta, sha256=sha256_file(csl_path), bytes=csl_path.stat().st_size)}
+        for k, (p, m) in gleif.items():
+            inputs[k] = dict(m, sha256=sha256_file(p), bytes=p.stat().st_size)
         for key in OWN_LISTS:
             p = Path(a.lists) / f'{key}.jsonl'
             if p.exists():
                 inputs[key] = dict(file=p.name, sha256=sha256_file(p))
         inputs_sha = hashlib.sha256(''.join(f"{k}:{v['sha256']}" for k, v in sorted(inputs.items())).encode()).hexdigest()
-        seeds, matches, info, edges, results = build(a.lists, paths['csl'], paths['rr'], paths['lei2'])
+        seeds, matches, info, edges, results = build(a.lists, csl_path, gleif['rr'][0], gleif['lei2'][0])
         recs = senzing_records(seeds, matches, info, results, inputs_sha)
-    except Exception as e:  # keep the previous feed rather than publish an empty one
-        error = f'{type(e).__name__}: {e}'
-        log('ERROR', error)
-        if not (prev and (prev / 'affiliates.senzing.jsonl').exists()):
-            return 1
-        recs = read_jsonl(prev / 'affiliates.senzing.jsonl')
-        inputs, inputs_sha, seeds, matches, info, edges, results = {}, None, [], {}, {}, [], {}
+    except Exception as e:  # noqa: BLE001
+        msg = f'{type(e).__name__}: {e}'
+        log('ERROR affiliates build failed, nothing written:', msg)
+        print(f'::error title=affiliates build failed::{msg}. No affiliates files were written; the previous '
+              f'release stays the latest, and its affiliates.manifest.json data_date says how old it is.',
+              file=sys.stderr, flush=True)
+        return 2
+    data_as_of = dict(gleif_rr=gleif_meta['rr'].get('publish_date'), gleif_lei2=gleif_meta['lei2'].get('publish_date'),
+                      csl=csl_meta.get('downloaded_at'))
+    data_date = gleif_as_of[:10] if gleif_as_of else None
+    gleif_route = '+'.join(sorted({m.get('route', '?') for m in gleif_meta.values()}))
+    coverage = 'partial' if any(m.get('coverage') == 'partial' for m in gleif_meta.values()) else 'full'
 
-    for r in recs:  # records kept from a feed built before the split carry no class yet
-        r.setdefault('VERDICT_CLASS', verdict_class(r))
     body = ''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in recs)
     (out / 'affiliates.senzing.jsonl').write_text(body, encoding='utf8', newline='\n')
     files = {'affiliates.senzing.jsonl': dict(records=len(recs), sha256=hashlib.sha256(body.encode('utf8')).hexdigest())}
@@ -578,21 +985,18 @@ def main(argv=None):
         (out / fname).write_text(part, encoding='utf8', newline='\n')
         files[fname] = dict(records=sum(1 for r in recs if r['VERDICT_CLASS'] == cls),
                             sha256=hashlib.sha256(part.encode('utf8')).hexdigest())
-    if results:
-        ftm = ftm_entities(recs, seeds, matches, info, edges)
-        (out / 'affiliates.ftm.json').write_text(''.join(json.dumps(x, ensure_ascii=False) + '\n' for x in ftm),
-                                                 encoding='utf8', newline='\n')
-    elif prev and (prev / 'affiliates.ftm.json').exists():
-        (out / 'affiliates.ftm.json').write_text((prev / 'affiliates.ftm.json').read_text(encoding='utf8'),
-                                                 encoding='utf8', newline='\n')
+    ftm = ftm_entities(recs, seeds, matches, info, edges)
+    (out / 'affiliates.ftm.json').write_text(''.join(json.dumps(x, ensure_ascii=False) + '\n' for x in ftm),
+                                             encoding='utf8', newline='\n')
     digest = files['affiliates.senzing.jsonl']['sha256']
     stable = records_digest(recs)
     verdicts = {rid: dict(Counter(r.verdict for r in ev.flagged())) for rid, ev in results.items()}
     amanifest = dict(
-        feed=FEED_URL, file='affiliates.senzing.jsonl', data_source=DATA_SOURCE, built_at=now, records=len(recs),
-        sha256=digest, records_sha256=stable, files=files,
+        feed=FEED_URL, file='affiliates.senzing.jsonl', data_source=DATA_SOURCE, built_at=now,
+        data_date=data_date, data_as_of=data_as_of, stale=False, gleif_route=gleif_route, gleif_coverage=coverage,
+        records=len(recs), sha256=digest, records_sha256=stable, files=files,
         verdict_classes=dict(Counter(r['VERDICT_CLASS'] for r in recs)),
-        evidence_state=EVIDENCE_STATE, disclaimer=DISCLAIMER, error=error,
+        evidence_state=EVIDENCE_STATE, disclaimer=DISCLAIMER,
         engine=dict(package='ownership-rules', version=ENGINE_VERSION,
                     rules={rid: load_rule(rid).version for rid in RULES}),
         inputs=inputs, inputs_sha256=inputs_sha,
@@ -615,13 +1019,14 @@ def main(argv=None):
     if mpath.exists():
         m = json.loads(mpath.read_text(encoding='utf8'))
         m['affiliates'] = {k: amanifest[k] for k in ('file', 'records', 'sha256', 'records_sha256', 'files',
-                                                       'inputs_sha256', 'evidence_state', 'error')}
-        lists_sha = ''.join(m['lists'][k]['sha256'] for k in sorted(m['lists']))
-        m['content_sha256'] = hashlib.sha256((lists_sha + stable).encode()).hexdigest()
+                                                       'inputs_sha256', 'evidence_state', 'data_date', 'data_as_of',
+                                                       'stale', 'gleif_route', 'gleif_coverage')}
+        m['content_sha256'] = content_sha256(m, stable, data_date)
         mpath.write_text(json.dumps(m, indent=1, ensure_ascii=False) + '\n', encoding='utf8', newline='\n')
     cpath = out / 'CHANGES.md'
     lines = ['', '## Affiliates (derived, evidence not determination)', '',
-             f'- {len(recs)} records' + (f' (kept the previous build: {error})' if error else ''),
+             f'- {len(recs)} records from GLEIF data of {gleif_as_of or "unknown date"} ({gleif_route}'
+             + (', partial coverage' if coverage == 'partial' else '') + ')',
              '- ' + ', '.join(f"{n} {SPLIT_FILES[c]}" for c, n in sorted(amanifest['verdict_classes'].items()))]
     for rid, c in verdicts.items():
         lines.append(f'- {rid}: ' + ', '.join(f'{v} {n}' for v, n in sorted(c.items())))
