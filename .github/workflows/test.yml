@@ -13,3 +13,25 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m unittest discover -s tests -v
+      - name: tools/load.py reads the latest release
+        env:
+          URP_LIVE: "1"
+        run: python -m unittest tests.test_load -v
+
+  go:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go vet ./...
+      - run: test -z "$(gofmt -l .)"
+      - run: go test ./...
+      - name: the Go loader reads the latest release
+        env:
+          URP_LIVE: "1"
+        run: go test -run Latest -v ./...

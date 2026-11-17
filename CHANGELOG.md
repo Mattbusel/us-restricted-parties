@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 (2026-11-16)
+
+- `tools/load.py`: a standard-library Python loader. `load(list)` reads the latest release (or a local file),
+  `names()` and `parent_id()` read a record, and `--format csv` / `--format ftm` convert the files to flat CSV or
+  to FollowTheMoney entities (`Company`, `Sanction`, and `Ownership` from each listed parent to its named
+  subsidiaries).
+- Go loader: `go get github.com/Mattbusel/us-restricted-parties/go` (module tag `go/v0.1.0`), with `Load`,
+  `Read`, `LoadManifest` and typed records.
+- `docs/lists.md`: one section per list with the source, operator, how often it changes, what the build does to
+  it, and a field table mapping every field to Senzing and to FollowTheMoney.
+- CI checks both loaders offline against a six-record excerpt of a real release and against the latest release
+  assets.
+
 ## 0.2.0 (2026-11-15)
 
 - Hugging Face mirror: `hf_publish.py` writes one parquet split per list (flat columns: name, aliases, parent,
