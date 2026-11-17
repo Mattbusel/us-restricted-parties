@@ -10,6 +10,7 @@ Five US government restricted-party lists that are not in the Consolidated Scree
 | `us_dhs_uflpa.jsonl` | UFLPA Entity List (forced labor import ban) | dhs.gov/uflpa-entity-list, or the full list in the appendix of DHS's latest Federal Register notice when dhs.gov blocks the build | 190 |
 | `us_biosecure.jsonl` | BIOSECURE biotechnology companies of concern, interim (the 1260H biotech listings until OMB publishes its list) | derived from the 1260H file | 10 |
 | `all.jsonl` | all of the above | | 392 |
+| `affiliates.senzing.jsonl` | companies listed parties own or control (OFAC 50 Percent Rule, BIS Affiliates Rule), derived from GLEIF ownership links, with proof paths; evidence, not determination ([docs](docs/affiliates.md)) | GLEIF Level 2, trade.gov CSL, the files above | varies |
 
 *As of the first build on Nov 15 2026. `manifest.json` in each release has the current counts, hashes and source documents, and `CHANGES.md` lists the names added and removed.
 

@@ -2,3 +2,4 @@ dist/
 prev/
 __pycache__/
 *.pyc
+.cache/

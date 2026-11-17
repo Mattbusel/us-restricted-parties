@@ -1,7 +1,7 @@
 name: build
 
-# Rebuilds the five lists from the official sources every day and publishes a new
-# release only when a list changed, so releases/latest/download/<file> is always current.
+# Rebuilds the five lists from the official sources every day, derives the affiliates feed, and publishes a new
+# release only when a list or the affiliates file changed, so releases/latest/download/<file> is always current.
 on:
   schedule:
     - cron: "17 6 * * *"
@@ -22,6 +22,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install the ownership rule engine
+        run: python -m pip install "ownership-rules==0.1.0" || python -m pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@v0.1.0"
       - name: Test
         run: python -m unittest discover -s tests
       - name: Download the previous release
@@ -29,9 +31,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p prev
-          gh release download --repo "$GITHUB_REPOSITORY" --dir prev --pattern '*.jsonl' --pattern manifest.json || echo "no previous release"
+          gh release download --repo "$GITHUB_REPOSITORY" --dir prev --pattern '*.jsonl' --pattern manifest.json --pattern affiliates.ftm.json || echo "no previous release"
       - name: Build
         run: python build.py --out dist --prev prev
+      # Derived affiliates (ownership-rules over GLEIF Level 2 and the 1260H notices). A failure keeps the previous
+      # affiliates files and never blocks the five lists.
+      - name: Affiliates
+        run: python affiliates.py --lists dist --out dist --prev prev --cache .cache || echo "::warning::affiliates build failed; lists published without it"
       - name: Publish when a list changed
         env:
           GH_TOKEN: ${{ github.token }}
@@ -46,7 +52,7 @@ jobs:
           day=$(date -u +%Y-%m-%d)
           tag="data-$day"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then tag="$tag-$(date -u +%H%M)"; fi
-          gh release create "$tag" dist/*.jsonl dist/manifest.json dist/CHANGES.md \
+          gh release create "$tag" dist/*.jsonl dist/manifest.json dist/CHANGES.md $(ls dist/affiliates.ftm.json dist/affiliates.manifest.json 2>/dev/null) \
             --repo "$GITHUB_REPOSITORY" --title "Lists as of $day" --notes-file dist/CHANGES.md --latest
       # Mirrors the lists to huggingface.co/datasets/tensorust/us-restricted-parties (parquet split per list plus the
       # Senzing files). hf_publish.py uploads only when the dataset does not already hold these lists, so this also

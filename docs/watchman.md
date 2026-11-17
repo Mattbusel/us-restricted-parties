@@ -52,3 +52,15 @@ curl -s "http://localhost:8084/v2/listinfo"   # list names, record counts and sh
 
 `manifest.json` in each release has the record count and sha256 for every file. They match what `/v2/listinfo`
 reports (`lists` and `listHashes`), so you can confirm a deployment loaded the current release.
+
+## Derived affiliates
+
+`affiliates.senzing.jsonl` adds companies that listed parties own or control (OFAC 50 Percent Rule, BIS Affiliates
+Rule, from GLEIF ownership links), each with a verdict and proof path. Add it as one more Senzing source:
+
+```yaml
+      - SourceList: "us_restricted_affiliates"
+        Location: "https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/affiliates.senzing.jsonl"
+```
+
+These records are evidence for review, not agency determinations; see [affiliates.md](affiliates.md).

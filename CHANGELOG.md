@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 (2026-11-17)
+
+- Derived affiliates feed: `affiliates.py` runs after the list build and publishes `affiliates.senzing.jsonl`,
+  `affiliates.ftm.json`, `affiliates.manifest.json` and `affiliates.changes.jsonl` with each release. Seeds are
+  this repository's lists plus the SDN, Entity and MEU lists from the trade.gov Consolidated Screening List; links
+  are GLEIF Level 2 relationship records (CC0) and the 1260H parent/subsidiary links; verdicts come from
+  [ownership-rules](https://github.com/Mattbusel/ownership-rules) (`ofac-50`, `bis-affiliates`, and `any-list-50`
+  as a screening signal over this repository's lists). Every record carries its proof path, the input hash and
+  the state "evidence, not determination". `CHANGES.md` gets an Affiliates section with per-record events.
+- A failed affiliates build keeps the previous affiliates files and never blocks the lists.
+- `docs/affiliates.md`: method, fields, limits, and Watchman and yente setup.
+
 ## 0.3.1 (2026-11-16)
 
 - FCC Covered List: the category entries in `manifest.json` (`notes.category_entries`) no longer carry the
