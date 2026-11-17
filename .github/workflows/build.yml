@@ -31,16 +31,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p prev
-          gh release download --repo "$GITHUB_REPOSITORY" --dir prev --pattern '*.jsonl' --pattern manifest.json --pattern affiliates.ftm.json || echo "no previous release"
+          gh release download --repo "$GITHUB_REPOSITORY" --dir prev --pattern '*.jsonl' --pattern manifest.json --pattern affiliates.ftm.json --pattern affiliates.manifest.json || echo "no previous release"
       - name: Build
         run: python build.py --out dist --prev prev
       # Derived affiliates (ownership-rules over GLEIF Level 2 and the 1260H notices). GLEIF comes from the golden
       # copy server, else GLEIF's AWS Open Data mirror, else the per-record GLEIF API. If none works, or the GLEIF
-      # data is more than 48 hours old, affiliates.py exits 2 with an error annotation and this job fails before
-      # publishing: the previous release stays the latest, and its affiliates.manifest.json data_date says how old
-      # it is. Stale affiliates are never re-served under a new release.
+      # data is more than 48 hours old, affiliates.py carries the previous release's affiliates files forward
+      # unchanged, with stale: true, their own older data_date and the error in affiliates.manifest.json and in the
+      # manifest.json `affiliates` entry, and emits a warning annotation. The affiliates never fail this job: the
+      # five lists build and publish on their own schedule.
       - name: Affiliates
-        run: python affiliates.py --lists dist --out dist --prev prev --cache .cache
+        run: |
+          python affiliates.py --lists dist --out dist --prev prev --cache .cache || echo "::warning title=affiliates not built::affiliates.py exited $?; this release has no affiliates files (no previous feed to carry forward). The lists publish as usual."
       - name: Publish when a list changed
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,7 +50,11 @@ jobs:
           new=$(jq -r .content_sha256 dist/manifest.json)
           old=$(jq -r .content_sha256 prev/manifest.json 2>/dev/null || echo none)
           cat dist/CHANGES.md >> "$GITHUB_STEP_SUMMARY"
-          echo "Affiliates data date: $(jq -r '.data_date' dist/affiliates.manifest.json) ($(jq -r '.gleif_route + ", " + .gleif_coverage' dist/affiliates.manifest.json))" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -f dist/affiliates.manifest.json ]; then
+            echo "Affiliates data date: $(jq -r '.data_date' dist/affiliates.manifest.json) ($(jq -r '.gleif_route + ", " + .gleif_coverage' dist/affiliates.manifest.json))$(jq -r 'if .stale then ", STALE: carried from the previous release: " + .error else "" end' dist/affiliates.manifest.json)" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Affiliates: not built in this run." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "$new" = "$old" ]; then
             echo "No list changed since the latest release." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0

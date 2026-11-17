@@ -262,9 +262,9 @@ class Affiliates(unittest.TestCase):
         self.assertEqual(kinds['lei:GONE'], 'removed')
         self.assertEqual(kinds['lei:C2'], 'added')
 
-    def test_failed_inputs_fail_loudly_and_write_nothing(self):
-        # A missing input used to re-serve the previous feed as if it were new. Now the run fails (exit 2), says so
-        # on stderr as a GitHub error annotation, and writes no affiliates file, even with a previous feed at hand.
+    def test_failed_inputs_without_a_previous_feed_fail_loudly_and_write_nothing(self):
+        # With no previous feed to carry forward (here: no affiliates.manifest.json in --prev), a failed build exits 2,
+        # says so on stderr as a GitHub error annotation, and writes no affiliates file.
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
             cache, lists, out = _fixtures(d)
@@ -320,6 +320,72 @@ class DataDate(unittest.TestCase):
             self.assertEqual(_run(cache, lists, out, stderr=err), 2)
             self.assertIn('StaleData', err.getvalue())
             self.assertFalse((out / 'affiliates.senzing.jsonl').exists())
+
+
+def _mk(p):
+    p.mkdir()
+    return p
+
+
+@unittest.skipIf(affiliates is None, 'ownership-rules is not installed')
+class StaleCarryForward(unittest.TestCase):
+    """GLEIF fails: the lists still publish, and the release carries the previous affiliates marked stale."""
+
+    def test_failed_gleif_carries_the_previous_feed_as_stale(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            # yesterday's release: a good build with GLEIF data of 2026-11-16
+            cache, lists, _ = _fixtures(_mk(d / 'y'))
+            _meta(cache, 'rr', '2026-11-16T08:00:00Z')
+            _meta(cache, 'lei2', '2026-11-16T08:00:00Z')
+            self.assertEqual(affiliates.main(['--lists', str(lists), '--out', str(lists), '--cache', str(cache),
+                                              '--offline', '--max-age-hours', '1e9']), 0)
+            prev = lists
+            prev_manifest = json.loads((prev / 'manifest.json').read_text(encoding='utf8'))
+            # today: the lists build, GLEIF fails
+            cache2, lists2, _ = _fixtures(_mk(d / 't'))
+            (cache2 / 'gleif-rr.csv.zip').unlink()
+            err = io.StringIO()
+            self.assertEqual(_run(cache2, lists2, lists2, prev, stderr=err), 0)
+            self.assertIn('::warning title=affiliates stale::FileNotFoundError', err.getvalue())
+            self.assertNotIn('::error', err.getvalue())
+            for name in ('affiliates.senzing.jsonl', 'affiliates.covered.senzing.jsonl',
+                         'affiliates.review.senzing.jsonl', 'affiliates.ftm.json'):
+                self.assertEqual((lists2 / name).read_bytes(), (prev / name).read_bytes(), name)
+            self.assertEqual((lists2 / 'affiliates.changes.jsonl').read_text(encoding='utf8'), '')
+            am = json.loads((lists2 / 'affiliates.manifest.json').read_text(encoding='utf8'))
+            self.assertIs(am['stale'], True)
+            self.assertEqual(am['data_date'], '2026-11-16')
+            self.assertIn('FileNotFoundError', am['error'])
+            m = json.loads((lists2 / 'manifest.json').read_text(encoding='utf8'))
+            self.assertIs(m['affiliates']['stale'], True)
+            self.assertEqual(m['affiliates']['data_date'], '2026-11-16')
+            self.assertIn('FileNotFoundError', m['affiliates']['error'])
+            self.assertEqual(m['lists'], json.loads((lists2 / 'manifest.json').read_text(encoding='utf8'))['lists'])
+            # same lists, same carried records and data date: no new release just because GLEIF failed
+            self.assertEqual(m['content_sha256'], prev_manifest['content_sha256'])
+            self.assertIn('STALE', (lists2 / 'CHANGES.md').read_text(encoding='utf8'))
+            # a second failed day keeps the original data date and when it went stale
+            cache3, lists3, _ = _fixtures(_mk(d / 'u'))
+            (cache3 / 'gleif-lei2.csv.zip').unlink()
+            self.assertEqual(_run(cache3, lists3, lists3, lists2), 0)
+            am3 = json.loads((lists3 / 'affiliates.manifest.json').read_text(encoding='utf8'))
+            self.assertEqual(am3['data_date'], '2026-11-16')
+            self.assertEqual(am3['stale_since'], am['stale_since'])
+            self.assertTrue(am3['stale'])
+
+    def test_stale_gleif_data_carries_too(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            cache, lists, _ = _fixtures(_mk(d / 'y'))
+            self.assertEqual(_run(cache, lists, lists), 0)
+            cache2, lists2, _ = _fixtures(_mk(d / 't'))
+            _meta(cache2, 'rr', '2026-01-01T00:00:00Z')
+            _meta(cache2, 'lei2', '2026-01-01T00:00:00Z')
+            err = io.StringIO()
+            self.assertEqual(_run(cache2, lists2, lists2, lists, stderr=err), 0)
+            self.assertIn('StaleData', err.getvalue())
+            self.assertTrue(json.loads((lists2 / 'affiliates.manifest.json').read_text(encoding='utf8'))['stale'])
 
 
 class _Resp(io.BytesIO):

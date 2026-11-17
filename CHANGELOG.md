@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 (2026-11-17)
+
+- A GLEIF failure no longer stops the five lists from publishing. When the affiliates build fails, the release
+  carries the previous affiliates files unchanged with `stale: true`, the real older `data_date` and an `error` note
+  in `affiliates.manifest.json` and the `affiliates` entry of `manifest.json`, and the job emits a warning annotation
+  instead of failing.
+
 ## 0.4.2 (2026-11-17)
 
 - GLEIF downloads: goldencopy.gleif.org answers HTTP 403 for every golden copy file since 2026-11-17 17:00 UTC

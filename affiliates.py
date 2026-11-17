@@ -17,8 +17,10 @@ Seeds are matched to LEIs by the LEI an SDN entry carries, by a registration num
 normalized legal or other name plus country that is unique on both sides. Entries on different lists that share a
 name are one party and all keep the match. Every match records its method.
 
-GLEIF files come from the golden copy server, else GLEIF's AWS Open Data mirror, else the per-record GLEIF API. A
-failed download or GLEIF data older than --max-age-hours ends the run with exit code 2 and no affiliates files;
+GLEIF files come from the golden copy server, else GLEIF's AWS Open Data mirror, else the per-record GLEIF API. When
+the build fails (no route works, or the GLEIF data is older than --max-age-hours), the previous feed in --prev is
+carried forward unchanged with stale: true, its own older data_date and the error, and the run exits 0 with a GitHub
+warning, so the five lists still publish; without a previous feed it exits 2 and writes no affiliates files.
 affiliates.manifest.json carries the data date (data_date, data_as_of) of every feed it describes.
 
 Rules (ownership-rules): ofac-50 over the SDN List, bis-affiliates over the Entity List, MEU List and 744.8 SDNs,
@@ -911,6 +913,52 @@ def check_fresh(gleif_meta, now, max_age_hours, required):
     return oldest
 
 
+def carry_forward(prev, out, error, now):
+    """The affiliates build failed. The five lists still publish: this copies the previous release's affiliates files
+    into --out unchanged, with affiliates.manifest.json and the manifest.json `affiliates` entry set to stale: true,
+    the previous data_date (the real, older day of the GLEIF data) and the error. content_sha256 uses the previous
+    records and data date, so a day on which only the affiliates failed makes no new release. Prints a GitHub warning
+    annotation and returns 0. Without a previous feed, writes nothing and returns 2 (error annotation)."""
+    pman = prev / 'affiliates.manifest.json' if prev else None
+    if not (pman and pman.exists() and (prev / 'affiliates.senzing.jsonl').exists()):
+        log('ERROR affiliates build failed and there is no previous feed to carry:', error)
+        print(f'::error title=affiliates build failed::{error}. There is no previous affiliates feed to carry '
+              f'forward, so this build has no affiliates files.', file=sys.stderr, flush=True)
+        return 2
+    am = json.loads(pman.read_text(encoding='utf8'))
+    carried = ['affiliates.senzing.jsonl', *SPLIT_FILES.values(), 'affiliates.ftm.json']
+    for name in carried:
+        if (prev / name).exists():
+            (out / name).write_bytes((prev / name).read_bytes())
+    # The previous release's change events are not today's: this build has none.
+    (out / 'affiliates.changes.jsonl').write_text('', encoding='utf8')
+    am.update(stale=True, error=error, stale_since=am.get('stale_since') or now,
+              carried_from_built_at=am.get('carried_from_built_at') or am.get('built_at'), built_at=now)
+    (out / 'affiliates.manifest.json').write_text(json.dumps(am, indent=1, ensure_ascii=False) + '\n',
+                                                  encoding='utf8', newline='\n')
+    mpath = out / 'manifest.json'
+    if mpath.exists():
+        m = json.loads(mpath.read_text(encoding='utf8'))
+        m['affiliates'] = {k: am.get(k) for k in MANIFEST_KEYS + ('error', 'stale_since')}
+        m['content_sha256'] = content_sha256(m, am.get('records_sha256') or '', am.get('data_date'))
+        mpath.write_text(json.dumps(m, indent=1, ensure_ascii=False) + '\n', encoding='utf8', newline='\n')
+    with open(out / 'CHANGES.md', 'a', encoding='utf8', newline='\n') as f:
+        f.write('\n'.join(['', '## Affiliates (derived, evidence not determination)', '',
+                           f"- STALE: this build could not refresh the affiliates ({error}). The files are the previous "
+                           f"feed's, unchanged, with GLEIF data of {am.get('data_date') or 'unknown date'}.",
+                           '- changes: none']) + '\n')
+    log('affiliates build failed, carried the previous feed forward as stale:', error)
+    print(f"::warning title=affiliates stale::{error}. The lists were built and publish as usual; the affiliates "
+          f"files are the previous feed's, marked stale: true, data_date {am.get('data_date')}.",
+          file=sys.stderr, flush=True)
+    return 0
+
+
+# The affiliates.manifest.json fields copied into the `affiliates` entry of manifest.json.
+MANIFEST_KEYS = ('file', 'records', 'sha256', 'records_sha256', 'files', 'inputs_sha256', 'evidence_state',
+                 'data_date', 'data_as_of', 'stale', 'gleif_route', 'gleif_coverage')
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--lists', default='dist', help='directory with this build of the five list files')
@@ -931,8 +979,8 @@ def main(argv=None):
     now_dt = datetime.now(timezone.utc)
     now = now_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
     csl_path = cache / 'consolidated.json'
-    # Any failure below ends the run with exit code 2 and no affiliates files: the previous release's feed is never
-    # re-served as if it were new, and the workflow publishes nothing that day.
+    # Any failure below carries the previous release's affiliates forward, marked stale (carry_forward), so the five
+    # lists still publish that day; without a previous feed the run writes no affiliates file and exits 2.
     try:
         if a.offline:
             gleif = {k: (cached_gleif(cache, k), read_meta(cache, f'gleif-{k}') or dict(route='cache'))
@@ -966,11 +1014,7 @@ def main(argv=None):
         recs = senzing_records(seeds, matches, info, results, inputs_sha)
     except Exception as e:  # noqa: BLE001
         msg = f'{type(e).__name__}: {e}'
-        log('ERROR affiliates build failed, nothing written:', msg)
-        print(f'::error title=affiliates build failed::{msg}. No affiliates files were written; the previous '
-              f'release stays the latest, and its affiliates.manifest.json data_date says how old it is.',
-              file=sys.stderr, flush=True)
-        return 2
+        return carry_forward(prev, out, msg, now)
     data_as_of = dict(gleif_rr=gleif_meta['rr'].get('publish_date'), gleif_lei2=gleif_meta['lei2'].get('publish_date'),
                       csl=csl_meta.get('downloaded_at'))
     data_date = gleif_as_of[:10] if gleif_as_of else None
@@ -1018,9 +1062,7 @@ def main(argv=None):
     mpath = out / 'manifest.json'
     if mpath.exists():
         m = json.loads(mpath.read_text(encoding='utf8'))
-        m['affiliates'] = {k: amanifest[k] for k in ('file', 'records', 'sha256', 'records_sha256', 'files',
-                                                       'inputs_sha256', 'evidence_state', 'data_date', 'data_as_of',
-                                                       'stale', 'gleif_route', 'gleif_coverage')}
+        m['affiliates'] = {k: amanifest[k] for k in MANIFEST_KEYS}
         m['content_sha256'] = content_sha256(m, stable, data_date)
         mpath.write_text(json.dumps(m, indent=1, ensure_ascii=False) + '\n', encoding='utf8', newline='\n')
     cpath = out / 'CHANGES.md'

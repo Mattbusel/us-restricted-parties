@@ -136,7 +136,7 @@ changed, and a file with no records in that build (most often `affiliates.change
 |---|---|
 | `data_date` | day of the GLEIF publish the records were built from (the older of the two GLEIF files) |
 | `data_as_of` | `gleif_rr` and `gleif_lei2` publish times, and when the CSL was downloaded |
-| `stale` | always `false` in a published release: a stale build is never published |
+| `stale` | `false` for a fresh build; `true` when the affiliates could not be refreshed and the release carries the previous feed's files unchanged (then `error` says why, `stale_since` when it started, and `data_date` stays the real, older day) |
 | `gleif_route` | `golden-copy` (goldencopy.gleif.org), `aws-open-data` (GLEIF's mirror in the AWS Open Data registry, `s3://gleif`) or `gleif-api` (per record) |
 | `gleif_coverage` | `full`, or `partial` for the per-record API route, which looks up only the LEIs on list entries, the LEIs in the previous feed, the names on this repository's lists, and the companies below them |
 
@@ -144,9 +144,13 @@ GLEIF is read from the golden copy server first. Since 2026-11-17 that server an
 API still lists them), so the build then takes the same files from GLEIF's AWS mirror, and if that fails too, from
 the GLEIF API one record at a time. Downloads send a descriptive User-Agent, retry 429 and 5xx answers with
 backoff, and do not retry other 4xx answers. When no route works, or the GLEIF data is more than 48 hours old
-(`--max-age-hours`), `affiliates.py` exits with code 2, writes no affiliates file, and prints a GitHub error
-annotation; the workflow then fails and publishes nothing, so the latest release keeps its own, older
-`data_date`. A previous feed is never republished as if it were new.
+(`--max-age-hours`), `affiliates.py` copies the previous release's affiliates files into the build unchanged,
+sets `stale: true` with the error in `affiliates.manifest.json` and in the `affiliates` entry of `manifest.json`,
+keeps the previous `data_date`, writes no change events, and prints a GitHub warning annotation. The five lists
+still build and publish that day. A day on which only the affiliates failed makes no new release by itself, since
+the carried records and data date are the previous release's. With no previous feed to carry, `affiliates.py` exits
+2 and that release has no affiliates files; the workflow still succeeds. Check `stale` before treating the
+affiliates as current.
 
 ## Load it into Watchman
 
