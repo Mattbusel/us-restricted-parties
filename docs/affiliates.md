@@ -169,6 +169,36 @@ datasets:
 Point `YENTE_MANIFEST` at the file and match against the `screening` collection. Check the OpenSanctions licence for
 your use of their data; this file is CC BY 4.0.
 
+The FtM file holds the covered and the review records together. A `control_only` record carries the same topics as a
+covered one (OpenSanctions also uses `sanction.control` without a percentage threshold), so read the verdicts in each
+record's `summary` property, for example `ofac-50: control_only; bis-affiliates: control_only`, before you act on a hit.
+
+To try the recipe without downloading the whole OpenSanctions default collection, load only the SDN list next to the
+feed:
+
+```yaml
+catalogs:
+  - url: "https://data.opensanctions.org/datasets/latest/index.json"
+    scopes:
+      - us_ofac_sdn
+    resource_name: entities.ftm.json
+datasets:
+  - name: us_restricted_affiliates
+    title: Affiliates of US restricted parties (derived, evidence not determination)
+    entities_url: https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/affiliates.ftm.json
+  - name: screening
+    title: OFAC SDN plus derived affiliates
+    datasets:
+      - us_ofac_sdn
+      - us_restricted_affiliates
+```
+
+Checked on November 17, 2026 with `ghcr.io/opensanctions/yente:5.5.1` and Elasticsearch 9.4.2, using this manifest and
+release `data-2026-11-17-1709`: both datasets indexed, `GET /search/screening?q=Sistema Finance` returns
+`"Sistema Finance" JSC` from `us_restricted_affiliates`, `POST /match/screening` for `MEGAFON INVESTMENTS (CYPRUS)
+LIMITED` returns it with its `summary` and nested `Ownership` links, and a match for `Megafon PAO` returns the SDN entry
+from `us_ofac_sdn`.
+
 ## Run it yourself
 
 ```
