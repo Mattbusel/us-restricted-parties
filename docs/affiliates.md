@@ -119,7 +119,11 @@ record does; the build decides whether to publish a release from `records_sha256
 it, and publishes only when a list or a record changed.
 
 `affiliates.changes.jsonl` has one event per record per build: `added`, `removed` or `verdict_changed` (with the
-verdicts before and after). `CHANGES.md` in the release summarizes them.
+verdicts before and after). `CHANGES.md` in the release summarizes them. A release is published only when a list or a record
+changed, and a file with no records in that build (most often `affiliates.changes.jsonl`) is left out of it.
+
+When a source cannot be downloaded (GLEIF's file server, for example), the build keeps the previous records and
+says so in `affiliates.manifest.json` (`error`) and in `CHANGES.md`; the lists are still published.
 
 ## Load it into Watchman
 

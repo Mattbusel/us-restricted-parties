@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.1 (2026-11-17)
+
+- Affiliates are split into `affiliates.covered.senzing.jsonl` (definitely or possibly 50 percent owned: screen
+  against this) and `affiliates.review.senzing.jsonl` (control without a 50 percent share, which the rules do not
+  reach). `affiliates.senzing.jsonl` keeps both, and each record has `VERDICT_CLASS`. Watchman keeps only names, so
+  `docs/watchman.md` now points at the covered file.
+- A party named on one list now gets a record when another rule reaches it (an Entity List company 50 percent owned
+  by an SDN is blocked under `ofac-50`); `LISTED_ON` names its lists.
+- ownership-rules 0.1.1: the BIS rule reaches foreign companies owned through a US holding company, and Puerto Rico
+  and the US territories count as home. The engine is installed from its commit on GitHub, pinned by hash, not from
+  PyPI.
+- Proofs name the `share_basis` behind each verdict, and each link its `basis` (`accounting_consolidation`,
+  `branch`, ...): GLEIF consolidation percentages are not equity filings.
+- A release is published only when a list or an affiliates record changed. The release decision ignores the
+  per-record input hash, which changed every time GLEIF republished its files.
+- Empty files are left out of a release (GitHub rejects empty assets).
+
 ## 0.4.0 (2026-11-17)
 
 - Derived affiliates feed: `affiliates.py` runs after the list build and publishes `affiliates.senzing.jsonl`,

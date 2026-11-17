@@ -52,7 +52,12 @@ jobs:
           day=$(date -u +%Y-%m-%d)
           tag="data-$day"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then tag="$tag-$(date -u +%H%M)"; fi
-          gh release create "$tag" dist/*.jsonl dist/manifest.json dist/CHANGES.md $(ls dist/affiliates.ftm.json dist/affiliates.manifest.json 2>/dev/null) \
+          # GitHub rejects empty release assets (HTTP 400 Bad Content-Length), and a release with no affiliates
+          # change events has an empty affiliates.changes.jsonl, so only non-empty files are attached. A file missing
+          # from a release had no records in that build.
+          files=$(find dist -maxdepth 1 -type f -size +0c \( -name '*.jsonl' -o -name manifest.json -o -name CHANGES.md \
+            -o -name affiliates.ftm.json -o -name affiliates.manifest.json \) | sort)
+          gh release create "$tag" $files \
             --repo "$GITHUB_REPOSITORY" --title "Lists as of $day" --notes-file dist/CHANGES.md --latest
       # Mirrors the lists to huggingface.co/datasets/tensorust/us-restricted-parties (parquet split per list plus the
       # Senzing files). hf_publish.py uploads only when the dataset does not already hold these lists, so this also
