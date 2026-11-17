@@ -55,12 +55,17 @@ reports (`lists` and `listHashes`), so you can confirm a deployment loaded the c
 
 ## Derived affiliates
 
-`affiliates.senzing.jsonl` adds companies that listed parties own or control (OFAC 50 Percent Rule, BIS Affiliates
-Rule, from GLEIF ownership links), each with a verdict and proof path. Add it as one more Senzing source:
+The affiliates files add companies that listed parties own or control (OFAC 50 Percent Rule, BIS Affiliates Rule,
+from GLEIF ownership links), each with a verdict and proof path. Watchman keeps only the names, so it cannot show
+the verdict. Load `affiliates.covered.senzing.jsonl` (owned 50 percent or more, or possibly so) as the screening
+source; `affiliates.review.senzing.jsonl` (control without a 50 percent share, which the rules do not reach) is
+optional and belongs under its own source list name so its hits go to review:
 
 ```yaml
       - SourceList: "us_restricted_affiliates"
-        Location: "https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/affiliates.senzing.jsonl"
+        Location: "https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/affiliates.covered.senzing.jsonl"
+      - SourceList: "us_restricted_affiliates_review"   # optional
+        Location: "https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/affiliates.review.senzing.jsonl"
 ```
 
 These records are evidence for review, not agency determinations; see [affiliates.md](affiliates.md).

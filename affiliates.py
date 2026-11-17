@@ -20,11 +20,22 @@ Rules (ownership-rules): ofac-50 over the SDN List, bis-affiliates over the Enti
 and any-list-50 over this feed's own lists as a screening signal (those lists carry no ownership rule of their own).
 
 Output in --out
-  affiliates.senzing.jsonl   one Senzing ORGANIZATION per derived entity with its verdicts and proof paths
-  affiliates.ftm.json        the same as FollowTheMoney entities (Company + Ownership), one JSON object per line
-  affiliates.manifest.json   counts, input hashes, match statistics, rule versions
-  CHANGES.md                 an "Affiliates" section with per-record change events against --prev (appended)
-  manifest.json              gains an "affiliates" entry, and content_sha256 then covers the affiliates file too
+  affiliates.senzing.jsonl          one Senzing ORGANIZATION per derived entity with its verdicts and proof paths
+  affiliates.covered.senzing.jsonl  the records whose strongest verdict is definitely or possibly (50 percent or
+                                    more owned, or possibly so): the file to screen against
+  affiliates.review.senzing.jsonl   the records that are control_only under every rule (control or consolidation
+                                    without a share that reaches 50 percent): for review, not for screening hits
+  affiliates.ftm.json               the same as FollowTheMoney entities (Company + Ownership), one per line
+  affiliates.manifest.json          counts, input hashes, match statistics, rule versions
+  affiliates.changes.jsonl          per-record change events against --prev
+  CHANGES.md                        an "Affiliates" section summarizing them (appended)
+  manifest.json                     gains an "affiliates" entry; content_sha256 then covers the affiliates records,
+                                    without the per-record input hash, so a day on which only the input files
+                                    were republished (GLEIF does that several times a day) makes no new release
+
+A record is written for every entity that has a verdict other than not under at least one rule where it is not
+itself a seed. An entity named on one list can therefore appear because it is owned under another rule (an Entity
+List company 50 percent owned by an SDN is blocked under ofac-50); LISTED_ON says which lists name it.
 
 Each record is evidence for a compliance review, not a determination that the entity is sanctioned or restricted.
 """
@@ -48,6 +59,17 @@ OWN_LISTS = ['us_dod_1260h', 'us_far_889', 'us_fcc_covered', 'us_dhs_uflpa', 'us
 # Our lists name Chinese companies except Kaspersky (FCC Covered List); names are matched in these countries first.
 OWN_COUNTRIES = {'CN', 'HK', 'MO'}
 RULES = ['ofac-50', 'bis-affiliates', 'any-list-50']
+# Senzing files beside the combined one: what to screen against, and what only calls for a review.
+SPLIT_FILES = {'covered': 'affiliates.covered.senzing.jsonl', 'review': 'affiliates.review.senzing.jsonl'}
+COVERED_VERDICTS = ('definitely', 'possibly')
+# Short codes for what a link's share measures; copied into every proof step that uses the link.
+BASIS_NOTES = {
+    'branch': 'branch of the head office (same legal person)',
+    'accounting_consolidation': 'accounting consolidation, consolidation percentage reported by the child',
+    'accounting_consolidation_no_pct': 'accounting consolidation, no percentage reported',
+    'ultimate_accounting_consolidation': 'ultimate accounting consolidation, no direct parent reported',
+    'notice_subsidiary': 'subsidiary named in the notice, share not stated',
+}
 REG_ID_TYPES = ('Registration Number', 'Registration ID', 'Business Registration Number', 'Company Number',
                 'Unified Social Credit Code (USCC)', 'Tax ID No.', 'Commercial Registry Number',
                 'Government Gazette Number', 'Economic Register Number (CBLS)', 'Business Number',
@@ -321,12 +343,12 @@ def build(lists_dir, csl_path, rr_zip, lei2_zip):
                 e = dict(owner=f'lei:{parent}', owned=f'lei:{child}', as_of=updated,
                          source=f'GLEIF {kind}', validation=validation)
                 if kind == 'IS_INTERNATIONAL_BRANCH_OF':
-                    e.update(pct=100, control=True, basis='branch of the head office (same legal person)')
+                    e.update(pct=100, control=True, basis='branch')
                 elif kind == 'IS_DIRECTLY_CONSOLIDATED_BY':
                     e.update(pct=pct, control=True,
-                             basis='accounting consolidation' + (', consolidation percentage reported by the child' if pct is not None else ''))
+                             basis='accounting_consolidation' if pct is not None else 'accounting_consolidation_no_pct')
                 else:
-                    e.update(pct=None, control=True, basis='ultimate accounting consolidation, no direct parent reported')
+                    e.update(pct=None, control=True, basis='ultimate_accounting_consolidation')
                 edges.append(e)
                 if child not in reach:
                     reach.add(child)
@@ -336,7 +358,7 @@ def build(lists_dir, csl_path, rr_zip, lei2_zip):
     for s in seeds:
         if s['parent'] and s['parent'] in by_src:
             edges.append(dict(owner=entity_id(by_src[s['parent']], matches), owned=entity_id(s, matches), pct=None,
-                              control=False, source='DoD Section 1260H notice', basis='subsidiary named in the notice',
+                              control=False, source='DoD Section 1260H notice', basis='notice_subsidiary',
                               url=s['url']))
     log('edges:', len(edges), 'entities reachable:', len(reach))
 
@@ -369,12 +391,25 @@ def primary_name(names):
     return names[0]
 
 
+def share_basis(proof):
+    """The bases of every link with a percentage that the proof uses (what the shares behind the verdict measure)."""
+    return sorted({v['basis'] for st in proof for v in st.get('via', ()) if v.get('pct') is not None and v.get('basis')})
+
+
+def verdict_class(rec):
+    """covered: definitely or possibly under some rule; review: control_only under every rule it appears in."""
+    return 'covered' if any(v in COVERED_VERDICTS for v in rec['OWNERSHIP_VERDICTS'].values()) else 'review'
+
+
 def senzing_records(seeds, matches, info, results, inputs_sha):
     listed_ids = {entity_id(s, matches) for s in seeds}
-    names_by_id = {}
+    names_by_id, lists_by_id = {}, defaultdict(set)
     for s in seeds:
         names_by_id.setdefault(entity_id(s, matches), s['name'])
-    ids = sorted({r.entity for ev in results.values() for r in ev.flagged()} - listed_ids)
+        lists_by_id[entity_id(s, matches)].add(s['list'])
+    # flagged() leaves out each rule's own seeds (verdict listed), so a party named on one list still gets a record
+    # when another rule reaches it, e.g. an Entity List company owned 50 percent or more by an SDN.
+    ids = sorted({r.entity for ev in results.values() for r in ev.flagged()})
     recs = []
     for eid in ids:
         lei = eid[4:] if eid.startswith('lei:') else None
@@ -388,9 +423,11 @@ def senzing_records(seeds, matches, info, results, inputs_sha):
             r = ev[eid]
             if r.verdict == 'not':
                 continue
+            if r.verdict == 'listed':
+                continue
             verdicts[rid] = r.verdict
             proofs[rid] = dict(verdict=r.verdict, share=[round(x, 4) for x in r.share], reasons=list(r.reasons),
-                               seeds=list(r.seeds), proof=r.proof)
+                               share_basis=share_basis(r.proof), seeds=list(r.seeds), proof=r.proof)
             for v in (r.proof[-1].get('via', []) if r.proof else []):
                 rels.append(v['owner'])
         rec = {
@@ -406,6 +443,8 @@ def senzing_records(seeds, matches, info, results, inputs_sha):
             rec['REGISTRATION_COUNTRY'] = gi['country']
         if gi.get('status'):
             rec['GLEIF_ENTITY_STATUS'] = gi['status']
+        if eid in lists_by_id:
+            rec['LISTED_ON'] = sorted(lists_by_id[eid])
         rec.update({
             'LIST_NAME': 'Affiliates of US restricted parties (derived)',
             'EVIDENCE_STATE': EVIDENCE_STATE,
@@ -416,8 +455,17 @@ def senzing_records(seeds, matches, info, results, inputs_sha):
                 {'REL_POINTER_DOMAIN': 'LISTED_PARTY' if o in listed_ids else DATA_SOURCE, 'REL_POINTER_KEY': o,
                  'REL_POINTER_ROLE': 'OWNED_OR_CONTROLLED_BY'} for o in sorted(set(rels))],
         })
+        rec['VERDICT_CLASS'] = verdict_class(rec)
         recs.append(rec)
     return recs
+
+
+def records_digest(recs):
+    """Hash of the records without INPUTS_SHA256, which changes whenever GLEIF republishes its files even when no
+    record changed. This is what decides whether the build publishes a new release."""
+    body = ''.join(json.dumps({k: v for k, v in r.items() if k != 'INPUTS_SHA256'}, ensure_ascii=False, sort_keys=True)
+                   + '\n' for r in recs)
+    return hashlib.sha256(body.encode('utf8')).hexdigest()
 
 
 # FollowTheMoney topics per rule: OFAC ownership or control, export-control link, trade risk (our own lists).
@@ -457,7 +505,7 @@ def ftm_entities(recs, seeds, matches, info, edges):
             out.append({'id': ftm_id(e['owner']), 'schema': 'Company', 'properties': props})
             done.add(e['owner'])
         props = {'owner': [ftm_id(e['owner'])], 'asset': [ftm_id(e['owned'])],
-                 'role': [e.get('basis', '')], 'publisher': [e.get('source', '')]}
+                 'role': [BASIS_NOTES.get(e.get('basis'), e.get('basis') or '')], 'publisher': [e.get('source', '')]}
         if e.get('pct') is not None:
             props['percentage'] = [str(e['pct'])]
         if e.get('as_of'):
@@ -520,8 +568,16 @@ def main(argv=None):
         recs = read_jsonl(prev / 'affiliates.senzing.jsonl')
         inputs, inputs_sha, seeds, matches, info, edges, results = {}, None, [], {}, {}, [], {}
 
+    for r in recs:  # records kept from a feed built before the split carry no class yet
+        r.setdefault('VERDICT_CLASS', verdict_class(r))
     body = ''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in recs)
     (out / 'affiliates.senzing.jsonl').write_text(body, encoding='utf8', newline='\n')
+    files = {'affiliates.senzing.jsonl': dict(records=len(recs), sha256=hashlib.sha256(body.encode('utf8')).hexdigest())}
+    for cls, fname in SPLIT_FILES.items():
+        part = ''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in recs if r['VERDICT_CLASS'] == cls)
+        (out / fname).write_text(part, encoding='utf8', newline='\n')
+        files[fname] = dict(records=sum(1 for r in recs if r['VERDICT_CLASS'] == cls),
+                            sha256=hashlib.sha256(part.encode('utf8')).hexdigest())
     if results:
         ftm = ftm_entities(recs, seeds, matches, info, edges)
         (out / 'affiliates.ftm.json').write_text(''.join(json.dumps(x, ensure_ascii=False) + '\n' for x in ftm),
@@ -529,11 +585,14 @@ def main(argv=None):
     elif prev and (prev / 'affiliates.ftm.json').exists():
         (out / 'affiliates.ftm.json').write_text((prev / 'affiliates.ftm.json').read_text(encoding='utf8'),
                                                  encoding='utf8', newline='\n')
-    digest = hashlib.sha256(body.encode('utf8')).hexdigest()
+    digest = files['affiliates.senzing.jsonl']['sha256']
+    stable = records_digest(recs)
     verdicts = {rid: dict(Counter(r.verdict for r in ev.flagged())) for rid, ev in results.items()}
     amanifest = dict(
         feed=FEED_URL, file='affiliates.senzing.jsonl', data_source=DATA_SOURCE, built_at=now, records=len(recs),
-        sha256=digest, evidence_state=EVIDENCE_STATE, disclaimer=DISCLAIMER, error=error,
+        sha256=digest, records_sha256=stable, files=files,
+        verdict_classes=dict(Counter(r['VERDICT_CLASS'] for r in recs)),
+        evidence_state=EVIDENCE_STATE, disclaimer=DISCLAIMER, error=error,
         engine=dict(package='ownership-rules', version=ENGINE_VERSION,
                     rules={rid: load_rule(rid).version for rid in RULES}),
         inputs=inputs, inputs_sha256=inputs_sha,
@@ -555,13 +614,15 @@ def main(argv=None):
     mpath = out / 'manifest.json'
     if mpath.exists():
         m = json.loads(mpath.read_text(encoding='utf8'))
-        m['affiliates'] = {k: amanifest[k] for k in ('file', 'records', 'sha256', 'inputs_sha256', 'evidence_state', 'error')}
+        m['affiliates'] = {k: amanifest[k] for k in ('file', 'records', 'sha256', 'records_sha256', 'files',
+                                                       'inputs_sha256', 'evidence_state', 'error')}
         lists_sha = ''.join(m['lists'][k]['sha256'] for k in sorted(m['lists']))
-        m['content_sha256'] = hashlib.sha256((lists_sha + digest).encode()).hexdigest()
+        m['content_sha256'] = hashlib.sha256((lists_sha + stable).encode()).hexdigest()
         mpath.write_text(json.dumps(m, indent=1, ensure_ascii=False) + '\n', encoding='utf8', newline='\n')
     cpath = out / 'CHANGES.md'
     lines = ['', '## Affiliates (derived, evidence not determination)', '',
-             f'- {len(recs)} records' + (f' (kept the previous build: {error})' if error else '')]
+             f'- {len(recs)} records' + (f' (kept the previous build: {error})' if error else ''),
+             '- ' + ', '.join(f"{n} {SPLIT_FILES[c]}" for c, n in sorted(amanifest['verdict_classes'].items()))]
     for rid, c in verdicts.items():
         lines.append(f'- {rid}: ' + ', '.join(f'{v} {n}' for v, n in sorted(c.items())))
     counts = Counter(e['event'] for e in events)
