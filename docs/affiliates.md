@@ -229,13 +229,13 @@ from `us_ofac_sdn`.
 ## Run it yourself
 
 ```
-pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@5fa9b7d9cf581bc9465f229c7d06f9c171d81f64"
+pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@f6435f66d4d86052412b35e469cde1a32c89759b"
 python build.py --out dist
 python affiliates.py --lists dist --out dist --cache .cache
 ```
 
-That pins ownership-rules 0.1.1 to its commit, which is also what the nightly build installs. (Once the package is
-on PyPI, `pip install ownership-rules==0.1.1` installs the same code.)
+That pins ownership-rules 0.2.0 to its commit, which is also what the nightly build installs. (Once the package is
+on PyPI, `pip install ownership-rules==0.2.0` installs the same code.)
 
 The GLEIF Level 1 file is about 500 MB compressed. Once the inputs are downloaded, the run took under two minutes
 on a laptop on November 17, 2026. GLEIF data is published under CC0.

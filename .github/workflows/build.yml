@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install the ownership rule engine
-        run: python -m pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@5fa9b7d9cf581bc9465f229c7d06f9c171d81f64"
+        run: python -m pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@f6435f66d4d86052412b35e469cde1a32c89759b"
       - name: Test
         run: python -m unittest discover -s tests
       - name: Download the previous release

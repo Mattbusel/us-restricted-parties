@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0 (2026-11-17)
+
+- Loaders read a fixed data release and check hashes. `tools/load.py`: `load(name, release="data-...",
+  verify=True)`, `url()`, `file_name()`, `manifest(release=...)`, `--release` and `--verify`. Go (`go/v0.2.0`):
+  `Source{Client, Release, Verify}` with `Load`, `LoadAffiliates`, `Manifest` and `URL`; `Manifest.SHA256`;
+  `FileName`. `Load`, `LoadFrom` and `LoadManifest` are unchanged.
+- Both loaders read the affiliates files: `affiliates.covered`, `affiliates.review` and `affiliates`. Python adds
+  `verdicts(rec)`; Go adds the `Affiliate` type (verdicts, proofs, LEI, `LISTED_ON` as the lists the company is on)
+  and `ReadAffiliates`. The Go `Record` type could not read affiliates records, whose `LISTED_ON` is a list.
+- The affiliates build uses ownership-rules 0.2.0. Its BIS rule now starts from SDNs under
+  `ILLICIT-DRUGS-EO14059` as the SDN List writes the tag (0.1.x had a space instead of the first hyphen and
+  skipped them), so the next build can add `bis-affiliates` verdicts for companies those SDNs own.
+- `docs/integration.md`: what an integrator depends on, five-line Python and Go examples, which file to screen
+  against.
+
 ## 0.4.3 (2026-11-17)
 
 - A GLEIF failure no longer stops the five lists from publishing. When the affiliates build fails, the release

@@ -56,7 +56,8 @@ Watchman:
         Location: "https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/us_far_889.jsonl"
 ```
 
-More detail, including how aliases load, in [docs/watchman.md](docs/watchman.md).
+More detail, including how aliases load, in [docs/watchman.md](docs/watchman.md). Loading the files from Python or Go, pinning a
+dated release and checking hashes: [docs/integration.md](docs/integration.md).
 
 ## Use it with Senzing or anything else
 

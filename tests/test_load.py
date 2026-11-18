@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import load  # noqa: E402
 
 FEED = str(ROOT / 'tests' / 'fixtures' / 'feed_excerpt.jsonl')
+AFF = str(ROOT / 'tests' / 'fixtures' / 'affiliates_excerpt.senzing.jsonl')
 
 
 class Offline(unittest.TestCase):
@@ -62,6 +63,42 @@ class Offline(unittest.TestCase):
                 self.assertIsInstance(values, list)
                 self.assertTrue(all(isinstance(v, str) and v for v in values))
 
+    def test_file_names_and_pinned_urls(self):
+        self.assertEqual(load.file_name('us_far_889'), 'us_far_889.jsonl')
+        self.assertEqual(load.file_name('affiliates.covered'), 'affiliates.covered.senzing.jsonl')
+        self.assertEqual(load.url('all'), load.LATEST + 'all.jsonl')
+        self.assertEqual(load.url('affiliates.review', 'data-2026-11-17-2241'),
+                         load.RELEASES + 'data-2026-11-17-2241/affiliates.review.senzing.jsonl')
+        with self.assertRaises(ValueError):
+            load.file_name('affiliates.senzing')
+
+    def test_affiliates_records(self):
+        recs = load.load('affiliates.covered', AFF)
+        self.assertEqual(len(recs), 2)
+        for r in recs:
+            self.assertEqual(r['DATA_SOURCE'], 'US_RESTRICTED_AFFILIATES')
+            self.assertEqual(r['VERDICT_CLASS'], 'covered')
+            self.assertTrue(set(load.verdicts(r).values()) & {'definitely', 'possibly'})
+        self.assertEqual(load.verdicts(load.load('all', FEED)[0]), {})
+
+    def test_verify_against_a_local_manifest(self):
+        import hashlib
+        import shutil
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / 'us_far_889.jsonl'
+            shutil.copy(FEED, f)
+            sha = hashlib.sha256(f.read_bytes()).hexdigest()
+            man = {'lists': {'us_far_889': {'sha256': sha}}}
+            (Path(d) / 'manifest.json').write_text(json.dumps(man), encoding='utf-8')
+            self.assertEqual(len(load.load('us_far_889', str(f), verify=True)), 1)
+            man['lists']['us_far_889']['sha256'] = '0' * 64
+            (Path(d) / 'manifest.json').write_text(json.dumps(man), encoding='utf-8')
+            with self.assertRaises(ValueError):
+                load.load('us_far_889', str(f), verify=True)
+            with self.assertRaises(ValueError):
+                load.load('all', str(f), verify=True)
+
     def test_summary(self):
         buf = io.StringIO()
         with redirect_stdout(buf):
@@ -81,6 +118,21 @@ class LatestRelease(unittest.TestCase):
             total += len(recs)
         self.assertEqual(len(load.load('all')), total)
         json.dumps(list(load.to_ftm(load.load('all'))))
+
+    def test_hashes_and_affiliates_match_the_manifest(self):
+        man = load.manifest()
+        for name in load.LISTS:
+            load.load(name, verify=True)
+        for name in load.AFFILIATES:
+            fname = load.file_name(name)
+            if fname not in man.get('affiliates', {}).get('files', {}):
+                continue
+            recs = load.load(name, verify=True)
+            self.assertEqual(len(recs), man['affiliates']['files'][fname]['records'], name)
+
+    def test_a_pinned_release_still_loads(self):
+        recs = load.load('us_dod_1260h', release='data-2026-11-17-2241', verify=True)
+        self.assertGreater(len(recs), 100)
 
 
 if __name__ == '__main__':

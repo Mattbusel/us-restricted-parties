@@ -14,8 +14,12 @@ that list is kept and the error is written to `manifest.json` under `errors`.
 
 - Python: [`tools/load.py`](../tools/load.py), standard library only. `load("us_dhs_uflpa")`
   returns the records; `python tools/load.py --format csv` or `--format ftm` converts them.
+  `load(name, release="data-2026-11-17-2241", verify=True)` reads a fixed release and checks the
+  file against its `manifest.json`; `load("affiliates.covered")` reads the derived affiliates.
 - Go: `go get github.com/Mattbusel/us-restricted-parties/go`, then
-  `restrictedparties.Load(ctx, restrictedparties.UFLPA)`.
+  `restrictedparties.Load(ctx, restrictedparties.UFLPA)`, or
+  `restrictedparties.Source{Release: "...", Verify: true}.Load(...)` and `.LoadAffiliates(...)`.
+- More: [integration.md](integration.md) (pinning, hashes, which file to screen against).
 - Watchman: see [watchman.md](watchman.md).
 - Anything else: `https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/<file>`.
 
