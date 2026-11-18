@@ -12,12 +12,47 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@f6435f66d4d86052412b35e469cde1a32c89759b"
+      - run: python -m pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@716929cac969819a61774221f630c0b9aef88101"
       - run: python -m unittest discover -s tests -v
       - name: tools/load.py reads the latest release
         env:
           URP_LIVE: "1"
         run: python -m unittest tests.test_load -v
+
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        python: ["3.9", "3.13"]
+        include:
+          - os: windows-latest
+            python: "3.12"
+          - os: macos-latest
+            python: "3.12"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Loader tests (offline, against a local stand-in for the release server)
+        run: python -m unittest tests.test_load -v
+      - name: Wheel builds, installs and runs
+        shell: bash
+        run: |
+          python -m pip install build twine
+          pyproject-build  # not "python -m build": the repo root has a build.py that would shadow it
+          python -m twine check --strict dist/*
+          python -m pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          us-restricted-parties --version
+          python -c "import us_restricted_parties, os; assert os.path.isfile(os.path.join(os.path.dirname(us_restricted_parties.__file__), 'py.typed'))"
+      - name: mypy --strict (the package ships py.typed)
+        if: matrix.python == '3.13'
+        run: |
+          python -m pip install mypy
+          python -m mypy --strict src/us_restricted_parties
 
   go:
     runs-on: ubuntu-24.04

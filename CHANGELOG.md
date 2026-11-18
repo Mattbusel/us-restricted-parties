@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.6.0 (2026-11-18)
+
+- The Python loader is a package: `us-restricted-parties` (`src/us_restricted_parties`, one standard-library
+  module, `py.typed`, `mypy --strict` clean, console command `us-restricted-parties`). Install from the wheel on
+  the `v0.6.0` GitHub release; PyPI once the project exists. `tools/load.py` is now a shim over the package, so
+  `python tools/load.py` and `from load import ...` keep working.
+- `latest_release()` returns the newest data release tag from the `releases/latest` redirect (one HEAD request,
+  no API token). `load(..., verify=True)` without `release` now looks the tag up first and reads the file and
+  `manifest.json` from that one release; before, the two came from two separate `latest` requests and a release
+  published in between made a correct file fail the hash check.
+- `load(source=<URL>, verify=True)` checks against the `manifest.json` next to that URL. Before, it used the
+  latest release's manifest, so a file of an older release failed the check whenever that list had changed since.
+- `cache_dir=`: files of a pinned release (and its manifest) are kept in `cache_dir/<release>/` and read from there
+  next time; with `verify=True` they are checked on every read, and a file that fails the check is not cached.
+- `load("all", verify=True)` fails before downloading anything (it has no hash of its own). Release tags are
+  checked (`data-...`), so a value such as `../x` cannot reach a URL or a cache path.
+- The command reports HTTP and network errors as one line and exit code 2 instead of a traceback; `--cache-dir`,
+  `--latest-release` and `--version`.
+- Go `go/v0.3.0`: `LatestRelease(ctx, client)`, `Source.Resolve`; `Source{Verify: true}` with no `Release`
+  pins the latest tag first (same race as above); `Load(ctx, All)` with `Verify` fails before any request;
+  `AffiliatesManifest.Rules` (`RuleInfo`); `Version`.
+- Affiliates: ownership-rules 0.3.0. `affiliates.manifest.json` and the `affiliates` entry of `manifest.json`
+  carry `rules`, each rule's version and whether it binds on the build day (`in_force`, `stayed` with
+  `stayed_until` and `stay_cite`, or `not_yet_effective`). The BIS Affiliates Rule is `stayed` until 2027-01-10.
+  The verdicts do not change.
+- `docs/maintenance.md`: how the data is built and kept, data release history, CI, API stability and how to remove
+  the loaders. README: CI, build and data-date badges, and a short Python and Go section.
+
 ## 0.5.0 (2026-11-17)
 
 - Loaders read a fixed data release and check hashes. `tools/load.py`: `load(name, release="data-...",

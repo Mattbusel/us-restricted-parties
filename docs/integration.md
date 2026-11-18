@@ -14,40 +14,56 @@ compliance data warehouse.
   each file's SHA-256.
 - **Licenses.** Data CC BY 4.0 (credit "US Restricted Parties feed by Tensorust LLC"), code MIT. The affiliates
   are derived from GLEIF data (CC0) and the trade.gov Consolidated Screening List (US government work).
-- **No dependencies.** The Python loader is one standard-library file; the Go package uses the standard library.
+- **No dependencies.** The Python loader (`us-restricted-parties`, one standard-library module, typed) and the Go
+  package use the standard library only. Nothing to remove but one requirement line if you stop using it.
 - **Maintained.** Matthew Busel (Tensorust LLC) maintains the build. A source that fails keeps its previous
-  release and the error is written to `manifest.json`, so a list never goes empty because of a bad fetch.
+  release and the error is written to `manifest.json`, so a list never goes empty because of a bad fetch. Release
+  history, CI and data provenance: [maintenance.md](maintenance.md).
 
 ## Five lines
 
-Python ([`tools/load.py`](../tools/load.py), copy the file or download it in your build):
+Python:
+
+```
+pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.6.0/us_restricted_parties-0.6.0-py3-none-any.whl"
+```
+
+(`pip install us-restricted-parties` once it is on PyPI; or copy
+[`src/us_restricted_parties/__init__.py`](../src/us_restricted_parties/__init__.py) into your project as
+`us_restricted_parties.py`; `tools/load.py` still works for existing scripts.)
 
 ```python
-from load import load, names, verdicts
+from us_restricted_parties import latest_release, load, names, verdicts
 
-for rec in load("us_dhs_uflpa", release="data-2026-11-17-2241", verify=True):
+tag = latest_release()                          # "data-2026-11-18"; store it with your screening results
+for rec in load("us_dhs_uflpa", release=tag, verify=True, cache_dir=".urp-cache"):
     print(rec["RECORD_ID"], names(rec), rec["SOURCE_URL"])
-for rec in load("affiliates.covered"):          # owned 50 percent or more by listed parties, or possibly
+for rec in load("affiliates.covered", release=tag, verify=True, cache_dir=".urp-cache"):
     print(rec["NAME_ORG"], verdicts(rec))       # {"ofac-50": "definitely", "bis-affiliates": "possibly"}
 ```
+
+`cache_dir` keeps each release's files on disk, so a service that restarts often downloads a release once.
 
 Go (`go get github.com/Mattbusel/us-restricted-parties/go`):
 
 ```go
-src := restrictedparties.Source{Release: "data-2026-11-17-2241", Verify: true}
+tag, err := restrictedparties.LatestRelease(ctx, nil) // "data-2026-11-18"
+src := restrictedparties.Source{Release: tag, Verify: true}
 recs, err := src.Load(ctx, restrictedparties.UFLPA)
 affs, err := src.LoadAffiliates(ctx, restrictedparties.AffiliatesCovered)
 for _, a := range affs { fmt.Println(a.NameOrg, a.OwnershipVerdicts, a.LEINumber) }
 ```
 
 Leave `Release` empty (or `release=None`) for the latest build. `Verify` checks the downloaded bytes against the
-SHA-256 in that release's `manifest.json` and fails on a mismatch. `all.jsonl` has no hash of its own; verify the
-single lists.
+SHA-256 in that release's `manifest.json` and fails on a mismatch; without a release it first looks up the latest
+tag, so the file and its manifest cannot come from two different builds. `all.jsonl` has no hash of its own;
+verify the single lists. The affiliates manifest says whether each ownership rule binds on the build day
+(`rules`: the BIS Affiliates Rule is `stayed` until January 10, 2027).
 
 Engines that load files by URL:
 
 - Watchman: [watchman.md](watchman.md) (the Senzing files load as they are).
-- yente / OpenSanctions: `affiliates.ftm.json` is FollowTheMoney, and `python tools/load.py --format ftm` turns
+- yente / OpenSanctions: `affiliates.ftm.json` is FollowTheMoney, and `us-restricted-parties --format ftm` turns
   the lists into FtM; the recipe is in [affiliates.md](affiliates.md).
 - Senzing: the files are Senzing JSON Lines; `DATA_SOURCE` names the list.
 

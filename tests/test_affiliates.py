@@ -289,6 +289,25 @@ def _meta(cache, kind, publish_date, route='aws-open-data'):
 
 
 @unittest.skipIf(affiliates is None, 'ownership-rules is not installed')
+class RuleStatus(unittest.TestCase):
+    def test_rule_info_reports_the_bis_stay(self):
+        info = affiliates.rule_info('2026-11-18')
+        self.assertEqual(info['ofac-50']['status'], 'in_force')
+        self.assertEqual(info['bis-affiliates']['status'], 'stayed')
+        self.assertEqual(info['bis-affiliates']['stayed_until'], '2027-01-10')
+        self.assertIn('2026-22793', info['bis-affiliates']['stay_cite'])
+        self.assertEqual(affiliates.rule_info('2027-01-11')['bis-affiliates'], {'version': '2025-09-30', 'status': 'in_force'})
+
+    def test_the_manifests_carry_the_rules(self):
+        with tempfile.TemporaryDirectory() as d:
+            cache, lists, _ = _fixtures(_mk(Path(d) / 'b'))
+            self.assertEqual(_run(cache, lists, lists), 0)
+            am = json.loads((lists / 'affiliates.manifest.json').read_text(encoding='utf8'))
+            m = json.loads((lists / 'manifest.json').read_text(encoding='utf8'))
+            self.assertEqual(set(am['rules']), set(affiliates.RULES))
+            self.assertEqual(m['affiliates']['rules'], am['rules'])
+
+
 class DataDate(unittest.TestCase):
     def test_manifest_carries_the_gleif_data_date(self):
         from datetime import datetime, timedelta, timezone
@@ -356,6 +375,7 @@ class StaleCarryForward(unittest.TestCase):
             am = json.loads((lists2 / 'affiliates.manifest.json').read_text(encoding='utf8'))
             self.assertIs(am['stale'], True)
             self.assertEqual(am['data_date'], '2026-11-16')
+            self.assertEqual(set(am['rules']), set(affiliates.RULES))
             self.assertIn('FileNotFoundError', am['error'])
             m = json.loads((lists2 / 'manifest.json').read_text(encoding='utf8'))
             self.assertIs(m['affiliates']['stale'], True)

@@ -199,6 +199,63 @@ func TestVerifyAgainstManifest(t *testing.T) {
 	}
 }
 
+// Verify without a Release pins the latest tag first, so the file and the manifest come from one
+// release; LatestRelease reads the tag from the releases/latest redirect.
+func TestVerifyResolvesTheLatestTag(t *testing.T) {
+	feed, err := os.ReadFile("../tests/fixtures/feed_excerpt.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(feed)
+	manifest := `{"lists": {"us_dod_1260h": {"sha256": "` + hex.EncodeToString(sum[:]) + `"}},
+		"affiliates": {"files": {}, "rules": {"bis-affiliates": {"version": "2025-09-30", "status": "stayed", "stayed_until": "2027-01-10"}}}}`
+	var hits []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits = append(hits, r.Method+" "+r.URL.Path)
+		switch r.URL.Path {
+		case "/latest":
+			w.Header().Set("Location", "https://github.com/Mattbusel/us-restricted-parties/releases/tag/data-2026-11-18")
+			w.WriteHeader(http.StatusFound)
+		case "/download/data-2026-11-18/manifest.json":
+			w.Write([]byte(manifest))
+		case "/download/data-2026-11-18/us_dod_1260h.jsonl":
+			w.Write(feed)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &http.Client{Transport: rewrite{srv.URL}}
+	ctx := context.Background()
+	tag, err := LatestRelease(ctx, client)
+	if err != nil || tag != "data-2026-11-18" {
+		t.Fatalf("LatestRelease: %q, %v", tag, err)
+	}
+	hits = nil
+	recs, err := Source{Client: client, Verify: true}.Load(ctx, DoD1260H)
+	if err != nil || len(recs) != 2 {
+		t.Fatalf("verified latest load: %d records, %v", len(recs), err)
+	}
+	want := []string{"HEAD /latest", "GET /download/data-2026-11-18/manifest.json", "GET /download/data-2026-11-18/us_dod_1260h.jsonl"}
+	if strings.Join(hits, ",") != strings.Join(want, ",") {
+		t.Errorf("requests %v, want %v", hits, want)
+	}
+	m, err := Source{Client: client, Release: tag}.Manifest(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := m.Affiliates.Rules["bis-affiliates"]; r.Status != "stayed" || r.StayedUntil != "2027-01-10" {
+		t.Errorf("rules: %+v", m.Affiliates.Rules)
+	}
+	if _, err := (Source{Client: client, Release: "../x"}).Load(ctx, DoD1260H); err == nil {
+		t.Error("a release with a path in it was accepted")
+	}
+	hits = nil
+	if _, err := (Source{Client: client, Verify: true}).Load(ctx, All); err == nil || len(hits) != 0 {
+		t.Errorf("Verify with All: %v after %v", err, hits)
+	}
+}
+
 type rewrite struct{ base string }
 
 func (rw rewrite) RoundTrip(r *http.Request) (*http.Response, error) {

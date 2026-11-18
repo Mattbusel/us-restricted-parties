@@ -12,8 +12,9 @@ that list is kept and the error is written to `manifest.json` under `errors`.
 
 ## Loading the files
 
-- Python: [`tools/load.py`](../tools/load.py), standard library only. `load("us_dhs_uflpa")`
-  returns the records; `python tools/load.py --format csv` or `--format ftm` converts them.
+- Python: the `us-restricted-parties` package ([`src/us_restricted_parties`](../src/us_restricted_parties),
+  standard library only; install line in [integration.md](integration.md)). `load("us_dhs_uflpa")` returns the
+  records; `us-restricted-parties --format csv` or `--format ftm` converts them.
   `load(name, release="data-2026-11-17-2241", verify=True)` reads a fixed release and checks the
   file against its `manifest.json`; `load("affiliates.covered")` reads the derived affiliates.
 - Go: `go get github.com/Mattbusel/us-restricted-parties/go`, then
@@ -25,7 +26,7 @@ that list is kept and the error is written to `manifest.json` under `errors`.
 
 ## Fields (all lists)
 
-| Field | Meaning | Senzing | FollowTheMoney (`tools/load.py --format ftm`) |
+| Field | Meaning | Senzing | FollowTheMoney (`--format ftm`) |
 |---|---|---|---|
 | `DATA_SOURCE` | the list, upper case (`US_DOD_1260H`, ...) | data source code (register it before loading) | the dataset |
 | `RECORD_ID` | stable id derived from the list and the name | record id | `Company` entity id |

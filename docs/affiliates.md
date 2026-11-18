@@ -54,7 +54,7 @@ them.
    - `IS_INTERNATIONAL_BRANCH_OF`: a branch is part of its head office (100 percent).
    - `IS_ULTIMATELY_CONSOLIDATED_BY`, only where the child reports no direct parent: control, no share.
    - Parent and subsidiary links stated in the DoD 1260H notices (share not stated).
-4. **Rules** ([ownership-rules](https://github.com/Mattbusel/ownership-rules) 0.1.1):
+4. **Rules** ([ownership-rules](https://github.com/Mattbusel/ownership-rules) 0.3.0):
    - `ofac-50`: seeds are SDN entries;
    - `bis-affiliates`: seeds are Entity List entries (not address-only entries), MEU List entries, and SDNs under the
      15 CFR 744.8(a)(1) programs; only entities outside the United States as 15 CFR 772.1 defines it (so Puerto
@@ -64,6 +64,11 @@ them.
    - `any-list-50`: seeds are this repository's five lists. Those lists have no ownership rule of their own, so this
      is a screening signal only (Section 889 and the FCC Covered List name "subsidiaries and affiliates" without a
      threshold).
+
+   `affiliates.manifest.json` and the `affiliates` entry of `manifest.json` carry `rules`: each rule's version and
+   whether it binds on the build day (`status`: `in_force`, `stayed` or `not_yet_effective`). The BIS Affiliates
+   Rule is `stayed` until January 10, 2027 (FR Doc. 2026-22793), with `stayed_until` and `stay_cite`; its verdicts
+   are still computed, so a screening product can show them as advisory until the stay ends.
 
 A record is written for every entity that gets a verdict other than `not` under at least one rule of which it is
 not itself a seed. A party named on one list can therefore have a record under another rule: an Entity List
@@ -229,13 +234,13 @@ from `us_ofac_sdn`.
 ## Run it yourself
 
 ```
-pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@f6435f66d4d86052412b35e469cde1a32c89759b"
+pip install "ownership-rules @ git+https://github.com/Mattbusel/ownership-rules@716929cac969819a61774221f630c0b9aef88101"
 python build.py --out dist
 python affiliates.py --lists dist --out dist --cache .cache
 ```
 
-That pins ownership-rules 0.2.0 to its commit, which is also what the nightly build installs. (Once the package is
-on PyPI, `pip install ownership-rules==0.2.0` installs the same code.)
+That pins ownership-rules 0.3.0 to its commit, which is also what the nightly build installs. (Once the package is
+on PyPI, `pip install ownership-rules==0.3.0` installs the same code.)
 
 The GLEIF Level 1 file is about 500 MB compressed. Once the inputs are downloaded, the run took under two minutes
 on a laptop on November 17, 2026. GLEIF data is published under CC0.

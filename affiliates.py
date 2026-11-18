@@ -932,6 +932,7 @@ def carry_forward(prev, out, error, now):
             (out / name).write_bytes((prev / name).read_bytes())
     # The previous release's change events are not today's: this build has none.
     (out / 'affiliates.changes.jsonl').write_text('', encoding='utf8')
+    am.update(rules=rule_info())  # whether each rule binds is a fact about today, not about the carried data
     am.update(stale=True, error=error, stale_since=am.get('stale_since') or now,
               carried_from_built_at=am.get('carried_from_built_at') or am.get('built_at'), built_at=now)
     (out / 'affiliates.manifest.json').write_text(json.dumps(am, indent=1, ensure_ascii=False) + '\n',
@@ -956,7 +957,23 @@ def carry_forward(prev, out, error, now):
 
 # The affiliates.manifest.json fields copied into the `affiliates` entry of manifest.json.
 MANIFEST_KEYS = ('file', 'records', 'sha256', 'records_sha256', 'files', 'inputs_sha256', 'evidence_state',
-                 'data_date', 'data_as_of', 'stale', 'gleif_route', 'gleif_coverage')
+                 'data_date', 'data_as_of', 'stale', 'gleif_route', 'gleif_coverage', 'rules')
+
+
+def rule_info(as_of=None):
+    """Each rule's version and whether it binds on the build day: in_force, stayed (the BIS Affiliates Rule until
+    2027-01-10) or not_yet_effective. The verdicts do not depend on it; a consumer decides how to show a stayed rule."""
+    out = {}
+    for rid in RULES:
+        rule = load_rule(rid)
+        status = rule.status(as_of) if hasattr(rule, 'status') else 'in_force'
+        info = dict(version=rule.version, status=status)
+        stay = rule.stay(as_of) if hasattr(rule, 'stay') else None
+        if stay is not None:
+            info['stayed_until'] = stay.until.isoformat() if stay.until else None
+            info['stay_cite'] = stay.cite
+        out[rid] = info
+    return out
 
 
 def main(argv=None):
@@ -1043,6 +1060,7 @@ def main(argv=None):
         evidence_state=EVIDENCE_STATE, disclaimer=DISCLAIMER,
         engine=dict(package='ownership-rules', version=ENGINE_VERSION,
                     rules={rid: load_rule(rid).version for rid in RULES}),
+        rules=rule_info(),
         inputs=inputs, inputs_sha256=inputs_sha,
         seeds=dict(Counter(s['list'] for s in seeds)),
         seed_matches=dict(Counter(m for _, m in matches.values())),

@@ -1,5 +1,9 @@
 # US Restricted Parties (Senzing JSON Lines)
 
+[![build](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/build.yml/badge.svg)](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/build.yml)
+[![test](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/test.yml/badge.svg)](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/test.yml)
+[![latest data](https://img.shields.io/github/release-date/Mattbusel/us-restricted-parties?label=latest%20data)](https://github.com/Mattbusel/us-restricted-parties/releases/latest)
+
 Five US government restricted-party lists that are not in the Consolidated Screening List, rebuilt every day from the official sources and published as Senzing-format JSON Lines. Free for commercial use under CC BY 4.0.
 
 | File | List | Official source | Records* |
@@ -58,6 +62,23 @@ Watchman:
 
 More detail, including how aliases load, in [docs/watchman.md](docs/watchman.md). Loading the files from Python or Go, pinning a
 dated release and checking hashes: [docs/integration.md](docs/integration.md).
+
+## Load it from Python or Go
+
+```
+pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.6.0/us_restricted_parties-0.6.0-py3-none-any.whl"
+```
+
+```python
+from us_restricted_parties import latest_release, load
+tag = latest_release()                                   # pin one release per run and keep the tag
+for rec in load("us_dhs_uflpa", release=tag, verify=True, cache_dir=".urp-cache"):
+    print(rec["NAME_ORG"], rec["SOURCE_URL"])
+```
+
+Standard library only, typed. Go: `go get github.com/Mattbusel/us-restricted-parties/go`. Details, including the
+affiliates and hash checks, in [docs/integration.md](docs/integration.md); release history and provenance in
+[docs/maintenance.md](docs/maintenance.md).
 
 ## Use it with Senzing or anything else
 

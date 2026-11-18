@@ -15,6 +15,9 @@
 //	recs, err := src.Load(ctx, restrictedparties.UFLPA)
 //	affs, err := src.LoadAffiliates(ctx, restrictedparties.AffiliatesCovered)
 //
+// LatestRelease gives the newest tag ("data-2026-11-18") to pin and store with the results.
+// With Verify set and Release empty, Load looks it up itself.
+//
 // Data: CC BY 4.0, "US Restricted Parties feed by Tensorust LLC". The fields are described list
 // by list in docs/lists.md, the affiliates in docs/affiliates.md.
 package restrictedparties
@@ -29,8 +32,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 )
+
+// Version is this package's version, sent in the User-Agent.
+const Version = "0.3.0"
+
+const userAgent = "us-restricted-parties-go/" + Version
+
+// RepoURL is the feed's repository.
+const RepoURL = "https://github.com/Mattbusel/us-restricted-parties"
 
 // LatestURL is where each list's latest file is published; append "<list>.jsonl".
 const LatestURL = "https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/"
@@ -261,6 +274,16 @@ type FileInfo struct {
 	SHA256  string `json:"sha256"`
 }
 
+// RuleInfo is an ownership rule's version and whether it binds on the build day: "in_force",
+// "stayed" (the BIS Affiliates Rule until 2027-01-10) or "not_yet_effective". Verdicts are
+// computed the same way whatever the status.
+type RuleInfo struct {
+	Version     string `json:"version"`
+	Status      string `json:"status"`
+	StayedUntil string `json:"stayed_until,omitempty"`
+	StayCite    string `json:"stay_cite,omitempty"`
+}
+
 // AffiliatesManifest describes the affiliates build of a release.
 type AffiliatesManifest struct {
 	Files         map[string]FileInfo `json:"files"`
@@ -269,6 +292,8 @@ type AffiliatesManifest struct {
 	EvidenceState string              `json:"evidence_state"`
 	GLEIFCoverage string              `json:"gleif_coverage"`
 	Error         string              `json:"error,omitempty"`
+	// Rules is empty in releases built before 2026-11-18.
+	Rules map[string]RuleInfo `json:"rules,omitempty"`
 }
 
 // Manifest is the part of a release's manifest.json most callers need.
@@ -321,8 +346,57 @@ type Source struct {
 	Release string
 	// Verify checks every list or affiliates file against the SHA-256 in the same release's
 	// manifest.json before parsing it. All has no hash of its own, so Load(ctx, All) fails
-	// with Verify set; load the single lists instead.
+	// with Verify set; load the single lists instead. With Release empty, the latest tag is
+	// looked up first, so the file and the manifest come from the same release.
 	Verify bool
+}
+
+var tagPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+// LatestRelease returns the tag of the latest data release, such as "data-2026-11-18", from
+// the releases/latest redirect on github.com: one HEAD request, no API token and no API rate
+// limit. Pin it in a Source (and store it with screening results) so every file of one run
+// comes from the same release.
+func LatestRelease(ctx context.Context, client *http.Client) (string, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	c := *client
+	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, RepoURL+"/releases/latest", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := c.Do(req)
+	if err != nil {
+		return "", err
+	}
+	resp.Body.Close()
+	loc := resp.Header.Get("Location")
+	const marker = "/releases/tag/"
+	i := strings.LastIndex(loc, marker)
+	if resp.StatusCode/100 != 3 || i < 0 {
+		return "", fmt.Errorf("restrictedparties: latest release: %s, Location %q", resp.Status, loc)
+	}
+	tag, err := url.PathUnescape(loc[i+len(marker):])
+	if err != nil || !tagPattern.MatchString(tag) {
+		return "", fmt.Errorf("restrictedparties: latest release: unexpected tag in %q", loc)
+	}
+	return tag, nil
+}
+
+// Resolve returns a copy of s pinned to the latest release when Release is empty.
+func (s Source) Resolve(ctx context.Context) (Source, error) {
+	if s.Release != "" {
+		return s, nil
+	}
+	tag, err := LatestRelease(ctx, s.Client)
+	if err != nil {
+		return s, err
+	}
+	s.Release = tag
+	return s, nil
 }
 
 // URL returns the download URL of a file of this source's release.
@@ -341,7 +415,7 @@ func get(ctx context.Context, client *http.Client, url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "us-restricted-parties-go/1.1")
+	req.Header.Set("User-Agent", userAgent)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -371,8 +445,17 @@ func (s Source) fetch(ctx context.Context, list string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if s.Release != "" && !tagPattern.MatchString(s.Release) {
+		return nil, fmt.Errorf("restrictedparties: release %q: expected a data release tag such as data-2026-11-17-2241", s.Release)
+	}
 	var m *Manifest
 	if s.Verify {
+		if list == All {
+			return nil, fmt.Errorf("restrictedparties: manifest.json has no hash for %s; verify the single lists instead", name)
+		}
+		if s, err = s.Resolve(ctx); err != nil {
+			return nil, err
+		}
 		if m, err = s.Manifest(ctx); err != nil {
 			return nil, err
 		}
