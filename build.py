@@ -3,7 +3,7 @@
 
     python build.py --out dist [--prev prev]
 
-Lists (one file each, plus all.jsonl):
+Lists (one file each, plus all.jsonl and all.csv):
   us_dod_1260h.jsonl    DoD Chinese military companies (Section 1260H), Federal Register notices
   us_far_889.jsonl      Section 889 covered telecom and video surveillance companies, FAR 52.204-25 on eCFR
   us_fcc_covered.jsonl  FCC Covered List (Secure Networks Act), named companies only
@@ -21,7 +21,7 @@ error is recorded in the manifest, so a feed never goes empty because an agency 
 Standard library only. MIT licensed code; the generated data is CC BY 4.0 (the underlying lists are US government
 works in the public domain).
 """
-import argparse, gzip, hashlib, html, json, re, subprocess, sys, time, unicodedata, urllib.parse, urllib.request, urllib.error
+import argparse, csv, gzip, io, hashlib, html, json, re, subprocess, sys, time, unicodedata, urllib.parse, urllib.request, urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -597,6 +597,23 @@ def jsonl(recs):
     return ''.join(json.dumps(r, ensure_ascii=False, sort_keys=False) + '\n' for r in recs)
 
 
+CSV_COLUMNS = ['RECORD_ID', 'NAME', 'NAME_TYPE', 'DATA_SOURCE', 'LIST_NAME', 'LISTED_ON', 'PARENT_NAME', 'SOURCE_URL']
+
+
+def names_csv(recs):
+    """all.csv: one row per name (the PRIMARY name, then each ALIAS), so a screening tool that reads one name per
+    row with an id column (Jube, spreadsheet lookups, plain CSV loaders) matches the aliases too. RECORD_ID repeats
+    on the alias rows of a record."""
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator='\n')
+    w.writerow(CSV_COLUMNS)
+    for r in recs:
+        for n in r['NAMES']:
+            w.writerow([r['RECORD_ID'], n['NAME_ORG'], n['NAME_TYPE'], r['DATA_SOURCE'], r.get('LIST_NAME', ''),
+                        r.get('LISTED_ON', ''), r.get('PARENT_NAME', ''), r.get('SOURCE_URL', '')])
+    return buf.getvalue()
+
+
 def read_jsonl(p):
     return [json.loads(l) for l in Path(p).read_text(encoding='utf8').splitlines() if l.strip()]
 
@@ -664,6 +681,7 @@ def main(argv=None):
             changes.append((key, sorted(names), []))
     allrecs = [r for key in LISTS if key in recs for r in recs[key]]
     (out / 'all.jsonl').write_text(jsonl(allrecs), encoding='utf8', newline='\n')
+    (out / 'all.csv').write_text(names_csv(allrecs), encoding='utf8', newline='\n')
     manifest['content_sha256'] = hashlib.sha256(''.join(manifest['lists'][k]['sha256'] for k in sorted(manifest['lists'])).encode()).hexdigest()
     manifest['names_changed'] = bool(changes) or not prev_manifest
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + '\n', encoding='utf8', newline='\n')

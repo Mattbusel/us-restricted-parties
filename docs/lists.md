@@ -123,3 +123,12 @@ concern; every record says so in `BASIS`. Any OMB document the build finds is li
 
 Every record of the five lists, 404 on 2026-11-16. `DATA_SOURCE` tells them apart. An entity on
 two lists (a 1260H biotech company is also in BIOSECURE) has one record per list.
+
+## all.csv
+
+The records of `all.jsonl` as CSV with one row per name: the primary name, then each alias, so a
+loader that reads one name per row still matches the aliases. Columns:
+`RECORD_ID,NAME,NAME_TYPE,DATA_SOURCE,LIST_NAME,LISTED_ON,PARENT_NAME,SOURCE_URL`. `RECORD_ID`
+repeats on the alias rows of a record; `NAME_TYPE` is `PRIMARY` or `ALIAS`. Comma-delimited, one
+header row, fields quoted when they contain a comma. Like `all.jsonl` it has no hash of its own in
+`manifest.json`; it is built from the same records in the same run.

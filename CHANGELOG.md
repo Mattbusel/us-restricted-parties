@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Data releases carry `all.csv`: every record of `all.jsonl`, one row per name (primary and each alias), columns
+  `RECORD_ID,NAME,NAME_TYPE,DATA_SOURCE,LIST_NAME,LISTED_ON,PARENT_NAME,SOURCE_URL`, at
+  `releases/latest/download/all.csv`. For screening tools that load a delimited file with one name per row (for
+  example Jube's sanctions loader). The first daily run after this change publishes a release even if no list
+  changed, so the file exists at the latest URL.
+
 ## 0.6.0 (2026-11-18)
 
 - The Python loader is a package: `us-restricted-parties` (`src/us_restricted_parties`, one standard-library

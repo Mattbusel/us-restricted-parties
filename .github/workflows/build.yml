@@ -55,7 +55,9 @@ jobs:
           else
             echo "Affiliates: not built in this run." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-          if [ "$new" = "$old" ]; then
+          # all.csv was added after the first releases; the first run that finds the latest release without it
+          # publishes once even if no list changed, so releases/latest/download/all.csv exists.
+          if [ "$new" = "$old" ] && gh release view --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx all.csv; then
             echo "No list changed since the latest release." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -65,7 +67,7 @@ jobs:
           # GitHub rejects empty release assets (HTTP 400 Bad Content-Length), and a release with no affiliates
           # change events has an empty affiliates.changes.jsonl, so only non-empty files are attached. A file missing
           # from a release had no records in that build.
-          files=$(find dist -maxdepth 1 -type f -size +0c \( -name '*.jsonl' -o -name manifest.json -o -name CHANGES.md \
+          files=$(find dist -maxdepth 1 -type f -size +0c \( -name '*.jsonl' -o -name all.csv -o -name manifest.json -o -name CHANGES.md \
             -o -name affiliates.ftm.json -o -name affiliates.manifest.json \) | sort)
           gh release create "$tag" $files \
             --repo "$GITHUB_REPOSITORY" --title "Lists as of $day" --notes-file dist/CHANGES.md --latest

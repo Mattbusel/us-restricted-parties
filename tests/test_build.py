@@ -1,5 +1,5 @@
 """Offline tests: parsers run against real excerpts of each official source (tests/fixtures)."""
-import json, sys, tempfile, unittest
+import csv, io, json, sys, tempfile, unittest
 from pathlib import Path
 from unittest import mock
 
@@ -163,6 +163,20 @@ class Records(unittest.TestCase):
             self.assertEqual(list(m['lists']), ['us_fcc_covered'])
             self.assertIn('us_fcc_covered', m['errors'])
             self.assertEqual(build.read_jsonl(out / 'us_fcc_covered.jsonl'), [kept])
+            self.assertEqual((out / 'all.csv').read_text(encoding='utf8').splitlines(),
+                             [','.join(build.CSV_COLUMNS), 'x,ZTE Corporation,PRIMARY,US_FCC_COVERED,,2021-03-12,,'])
+
+    def test_all_csv_has_one_row_per_name(self):
+        rows = [dict(text='Shenzhen DJI Technology Co., Ltd. (DJI) (and DJI subsidiary: Shenzhen Dajiang Baiwang Technology Co., Ltd.)',
+                     effective='2026-06-10', doc='2026-11571', url='https://www.federalregister.gov/d/2026-11571')]
+        recs = build.build_records('us_dod_1260h', rows)
+        got = list(csv.reader(io.StringIO(build.names_csv(recs))))
+        self.assertEqual(got[0], build.CSV_COLUMNS)
+        by_name = {r[1]: r for r in got[1:]}
+        self.assertEqual(len(got) - 1, sum(len(r['NAMES']) for r in recs))
+        self.assertEqual(by_name['DJI'][0], by_name['Shenzhen DJI Technology Co., Ltd.'][0])
+        self.assertEqual(by_name['DJI'][2], 'ALIAS')
+        self.assertEqual(by_name['Shenzhen Dajiang Baiwang Technology Co., Ltd.'][6], 'Shenzhen DJI Technology Co., Ltd.')
 
 
 if __name__ == '__main__':

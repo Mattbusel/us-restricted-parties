@@ -14,6 +14,7 @@ Five US government restricted-party lists that are not in the Consolidated Scree
 | `us_dhs_uflpa.jsonl` | UFLPA Entity List (forced labor import ban) | dhs.gov/uflpa-entity-list, or the full list in the appendix of DHS's latest Federal Register notice when dhs.gov blocks the build | 190 |
 | `us_biosecure.jsonl` | BIOSECURE biotechnology companies of concern, interim (the 1260H biotech listings until OMB publishes its list) | derived from the 1260H file | 10 |
 | `all.jsonl` | all of the above | | 392 |
+| `all.csv` | all of the above as CSV, one row per name (primary name and each alias): `RECORD_ID,NAME,NAME_TYPE,DATA_SOURCE,LIST_NAME,LISTED_ON,PARENT_NAME,SOURCE_URL`, for screening tools that load one name per row | | one row per name |
 | `affiliates.senzing.jsonl` | companies listed parties own or control (OFAC 50 Percent Rule, BIS Affiliates Rule), derived from GLEIF ownership links, with proof paths; evidence, not determination ([docs](docs/affiliates.md)) | GLEIF Level 2, trade.gov CSL, the files above | varies |
 
 *As of the first build on Nov 15 2026. `manifest.json` in each release has the current counts, hashes and source documents, and `CHANGES.md` lists the names added and removed.
@@ -27,6 +28,7 @@ https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/us_f
 https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/us_dhs_uflpa.jsonl
 https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/us_biosecure.jsonl
 https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/all.jsonl
+https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/all.csv
 https://github.com/Mattbusel/us-restricted-parties/releases/latest/download/manifest.json
 ```
 
