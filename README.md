@@ -1,10 +1,10 @@
-# US Restricted Parties (Senzing JSON Lines)
+# US Restricted Parties: "screened against sanctions" usually means screened against the easy lists
 
 [![build](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/build.yml/badge.svg)](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/build.yml)
 [![test](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/test.yml/badge.svg)](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/test.yml)
 [![latest data](https://img.shields.io/github/release-date/Mattbusel/us-restricted-parties?label=latest%20data)](https://github.com/Mattbusel/us-restricted-parties/releases/latest)
 
-Five US government restricted-party lists that are not in the Consolidated Screening List, rebuilt every day from the official sources and published as Senzing-format JSON Lines. Free for commercial use under CC BY 4.0.
+Five US government lists decide whether a counterparty is a problem for federal contractors, grantees and importers, and none of them is in the trade.gov Consolidated Screening List; three are published only as prose in the Federal Register or as an HTML table. Measured on Nov 18 2026 against a 90.9K-star dashboard's OFAC and CSL index, 153 of 190 UFLPA entities and 75 of 186 DoD 1260H rows returned no match at all ([merged fix](https://github.com/koala73/worldmonitor/pull/10998)). Through one standard loader, all 207 DoD 1260H entities loaded with empty names, so a green screening job could not have matched one of them ([merged fix](https://github.com/moov-io/watchman/pull/1019)). This repo rebuilds the five lists every day from the official sources as Senzing-format JSON Lines, free for commercial use under CC BY 4.0.
 
 | File | List | Official source | Records* |
 |---|---|---|---|
