@@ -1,0 +1,72 @@
+{
+ "schema": 1,
+ "url": "https://raw.githubusercontent.com/Mattbusel/us-restricted-parties/status/status.json",
+ "generated_at": "2026-11-19T03:05:01Z",
+ "ok": true,
+ "build_ok": true,
+ "job_status": "success",
+ "run_url": "https://github.com/Mattbusel/us-restricted-parties/actions/runs/44448501189",
+ "last_release_tag": "data-2026-11-19",
+ "released_this_run": true,
+ "lists_unchanged_since_last_release": false,
+ "content_sha256": "b1c016abb80a4d2f6bab6a776a8d8fc58ad77f494ae0c75841b1aad57d192200",
+ "lists": {
+  "us_dod_1260h": {
+   "fetched_at": "2026-11-19T03:02:00Z",
+   "upstream_ok": true,
+   "rows": 186,
+   "sha256": "bee51e5d6d70dbfd3533687d896cafd3baf3ef7e75ff632e4d39f24ae7377db5",
+   "data_date": "2026-11-19",
+   "latest_listing": "2026-06-10",
+   "error": null
+  },
+  "us_far_889": {
+   "fetched_at": "2026-11-19T03:02:00Z",
+   "upstream_ok": true,
+   "rows": 5,
+   "sha256": "29f4379e28b5f996e47d5f644932aa07c6c51fe0a626bbc361fdd199f963a14b",
+   "data_date": "2026-11-19",
+   "latest_listing": "2019-08-13",
+   "error": null
+  },
+  "us_fcc_covered": {
+   "fetched_at": "2026-11-19T03:02:00Z",
+   "upstream_ok": true,
+   "rows": 13,
+   "sha256": "ee8563275cbf3caf1855d658e63a2a126db05d1d0e6857b717aaf07dcf0134c5",
+   "data_date": "2026-11-19",
+   "latest_listing": "2026-07-07",
+   "error": null
+  },
+  "us_dhs_uflpa": {
+   "fetched_at": "2026-11-19T03:02:00Z",
+   "upstream_ok": true,
+   "rows": 190,
+   "sha256": "ecc55e47ecc08841bf8c15a06b01faa48d3698fee6b6eaf64757f8e85adde904",
+   "data_date": "2026-11-19",
+   "latest_listing": "2026-10-29",
+   "error": null
+  },
+  "us_biosecure": {
+   "fetched_at": "2026-11-19T03:02:00Z",
+   "upstream_ok": true,
+   "rows": 10,
+   "sha256": "a206cedb0f3e7ed104871a0f40531c38fe601ea1c1cbafc530fd8e682610cf34",
+   "data_date": "2026-11-19",
+   "latest_listing": "2026-06-10",
+   "error": null
+  }
+ },
+ "affiliates": {
+  "built": true,
+  "upstream_ok": true,
+  "stale": false,
+  "data_date": "2026-11-19",
+  "rows": 177,
+  "sha256": "1cb19b4fab871ecf1cf08b3267bde863054b92f42bb7937b003cae66249cd852",
+  "gleif_route": "golden-copy",
+  "gleif_coverage": "full",
+  "error": null
+ },
+ "errors": {}
+}
