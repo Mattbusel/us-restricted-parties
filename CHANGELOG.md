@@ -1,7 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.6.1 (2026-11-18)
 
+- Freshness heartbeat. Every build run, including days with no list change, days an agency pull failed and runs
+  where the build failed, commits `status.json` to the `status` branch at a URL that does not move:
+  https://raw.githubusercontent.com/Mattbusel/us-restricted-parties/status/status.json. It carries
+  `generated_at`, `last_release_tag`, whether this run released, the run URL, every error, and per list
+  `fetched_at`, `upstream_ok`, `rows`, `sha256` and `data_date`, plus the affiliates' state. A consumer can confirm
+  coverage without a new release and treat a heartbeat older than 30 hours as unconfirmed. `docs/status.md`.
+- `manifest.json` lists carry `data_as_of`: when the served data was read from the agency. For a list kept from the
+  previous release after a failed pull it is that earlier time, not the build time. `us_biosecure` now has
+  `fetched_at: null` when the 1260H pull it is derived from failed.
 - Data releases carry `all.csv`: every record of `all.jsonl`, one row per name (primary and each alias), columns
   `RECORD_ID,NAME,NAME_TYPE,DATA_SOURCE,LIST_NAME,LISTED_ON,PARENT_NAME,SOURCE_URL`, at
   `releases/latest/download/all.csv`. For screening tools that load a delimited file with one name per row (for

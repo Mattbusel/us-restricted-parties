@@ -38,7 +38,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 __all__ = [
     "__version__", "REPO", "LATEST", "RELEASES", "LISTS", "AFFILIATES", "CSV_FIELDS", "Record",

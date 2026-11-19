@@ -8,6 +8,10 @@ What a team taking on this feed, or its loaders, can check for itself.
   after a source changes). It rebuilds the five lists from the official sources, derives the affiliates, and
   publishes a release only when a list, the affiliates records or the GLEIF data day changed. The run log of every
   build is public under Actions.
+- **A heartbeat on every run.** Each run, including no-change days and failed agency pulls, rewrites
+  [status.json](https://raw.githubusercontent.com/Mattbusel/us-restricted-parties/status/status.json) on the
+  `status` branch: when the run happened, which agencies answered, and each list's row count, hash and data date.
+  If it is more than 30 hours old the build has stopped ([docs/status.md](status.md)).
 - **Every release is kept.** Tags are `data-YYYY-MM-DD[-HHMM]`; the build never deletes or edits a data release, so
   a pinned URL returns the same bytes. `manifest.json` in each release gives each file's SHA-256, record counts,
   `fetched_at`, the source URL or Federal Register document per list, and any fetch error.

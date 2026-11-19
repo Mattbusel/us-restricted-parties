@@ -81,6 +81,9 @@ for rec in load("us_dhs_uflpa", release=tag, verify=True, cache_dir=".urp-cache"
 Standard library only, typed. Go: `go get github.com/Mattbusel/us-restricted-parties/go`. Details, including the
 affiliates and hash checks, in [docs/integration.md](docs/integration.md); release history and provenance in
 [docs/maintenance.md](docs/maintenance.md).
+Freshness: every daily run, even with no new release, writes
+[status.json](https://raw.githubusercontent.com/Mattbusel/us-restricted-parties/status/status.json) with the run time and each
+agency's pull result ([docs/status.md](docs/status.md)).
 
 ## Use it with Senzing or anything else
 

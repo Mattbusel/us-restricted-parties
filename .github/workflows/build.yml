@@ -44,6 +44,7 @@ jobs:
         run: |
           python affiliates.py --lists dist --out dist --prev prev --cache .cache || echo "::warning title=affiliates not built::affiliates.py exited $?; this release has no affiliates files (no previous feed to carry forward). The lists publish as usual."
       - name: Publish when a list changed
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -59,6 +60,7 @@ jobs:
           # publishes once even if no list changed, so releases/latest/download/all.csv exists.
           if [ "$new" = "$old" ] && gh release view --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx all.csv; then
             echo "No list changed since the latest release." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "released=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           day=$(date -u +%Y-%m-%d)
@@ -71,6 +73,7 @@ jobs:
             -o -name affiliates.ftm.json -o -name affiliates.manifest.json \) | sort)
           gh release create "$tag" $files \
             --repo "$GITHUB_REPOSITORY" --title "Lists as of $day" --notes-file dist/CHANGES.md --latest
+          echo "released=true" >> "$GITHUB_OUTPUT"
       # Mirrors the lists to huggingface.co/datasets/tensorust/us-restricted-parties (parquet split per list plus the
       # Senzing files). hf_publish.py uploads only when the dataset does not already hold these lists, so this also
       # catches up after a missed day. Skipped until the HF_TOKEN repository secret (a write token) is added.
@@ -84,3 +87,32 @@ jobs:
           fi
           pip install --quiet "huggingface_hub>=0.24" "pyarrow>=15"
           python hf_publish.py --dist dist --repo tensorust/us-restricted-parties
+      # Freshness heartbeat. Runs on every run, also when nothing changed, when an agency pull failed (the release then
+      # keeps the previous file) and when an earlier step failed, and commits status.json to the `status` branch:
+      # https://raw.githubusercontent.com/Mattbusel/us-restricted-parties/status/status.json (docs/status.md).
+      # A consumer that sees generated_at older than 30 hours knows the build stopped.
+      - name: Publish the freshness heartbeat
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || echo "")
+          python status.py --dist dist --prev prev --last-release "$tag" --released "${{ steps.publish.outputs.released }}" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --job-status "${{ job.status }}" \
+            --out "$RUNNER_TEMP/status.json"
+          jq -r '"Heartbeat: ok=\(.ok), errors=\(.errors | keys | join(", "))"' "$RUNNER_TEMP/status.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth 1 origin status; then
+            git worktree add -B status "$RUNNER_TEMP/hb" FETCH_HEAD
+          else
+            git worktree add --detach "$RUNNER_TEMP/hb"
+            git -C "$RUNNER_TEMP/hb" checkout --orphan status
+            git -C "$RUNNER_TEMP/hb" rm -rfq .
+          fi
+          cp "$RUNNER_TEMP/status.json" "$RUNNER_TEMP/hb/status.json"
+          printf '%s\n' "# status" "" "Freshness heartbeat of the daily build, rewritten on every run. See" \
+            "https://github.com/$GITHUB_REPOSITORY/blob/main/docs/status.md" > "$RUNNER_TEMP/hb/README.md"
+          git -C "$RUNNER_TEMP/hb" add status.json README.md
+          git -C "$RUNNER_TEMP/hb" commit -qm "heartbeat $(jq -r .generated_at "$RUNNER_TEMP/status.json")"
+          git -C "$RUNNER_TEMP/hb" push -q origin status

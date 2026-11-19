@@ -618,6 +618,20 @@ def read_jsonl(p):
     return [json.loads(l) for l in Path(p).read_text(encoding='utf8').splitlines() if l.strip()]
 
 
+def fetch_key(key):
+    """The pull a list comes from: us_biosecure is derived from the 1260H notices."""
+    return 'us_dod_1260h' if key == 'us_biosecure' else key
+
+
+def data_as_of(key, errors, prev_manifest, now):
+    """When the data in this list was last read from its agency: now, or, for a list kept from the previous release
+    because its pull failed, the previous release's own date (so a run of failures keeps the first good date)."""
+    if fetch_key(key) not in errors:
+        return now
+    p = prev_manifest.get('lists', {}).get(key, {})
+    return p.get('data_as_of') or p.get('fetched_at')
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--out', default='dist')
@@ -669,7 +683,8 @@ def main(argv=None):
                                       aliases=sum(len(r['NAMES']) - 1 for r in recs[key]), sha256=digest,
                                       names_sha256=hashlib.sha256('\n'.join(names).encode('utf8')).hexdigest(),
                                       latest_listing=max((r['LISTED_ON'] for r in recs[key]), default=None),
-                                      fetched_at=None if key in errors else now, notes=notes.get(key, {}))
+                                      fetched_at=None if fetch_key(key) in errors else now,
+                                      data_as_of=data_as_of(key, errors, prev_manifest, now), notes=notes.get(key, {}))
         if prev and (prev / f'{key}.jsonl').exists():
             before = {r['RECORD_ID']: r['NAME_ORG'] for r in read_jsonl(prev / f'{key}.jsonl')}
             now_ids = {r['RECORD_ID']: r['NAME_ORG'] for r in recs[key]}
