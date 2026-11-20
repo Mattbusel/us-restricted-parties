@@ -1,0 +1,63 @@
+{
+ "errors": {},
+ "generated_at": "2026-11-20T19:56:29Z",
+ "lists": {
+  "biosecure": {
+   "basis": "OMB has not published its list (due Dec 18 2026)",
+   "published": false,
+   "source": "Derived from us_dod_1260h; Federal Register watched for the OMB list",
+   "updated": null
+  },
+  "bis_entity": {
+   "basis": "CSL sources_used: Entity List (EL) - Bureau of Industry and Security",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "updated": "2026-08-21T20:19:33Z"
+  },
+  "bis_meu": {
+   "basis": "CSL sources_used: Military End User (MEU) List - Bureau of Industry and Security",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "updated": "2026-02-20T18:34:52Z"
+  },
+  "bis_uvl": {
+   "basis": "CSL sources_used: Unverified List (UVL) - Bureau of Industry and Security",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "updated": "2026-02-10T23:02:53Z"
+  },
+  "csl": {
+   "basis": "newest source_last_updated in the CSL",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "updated": "2026-11-19T14:32:00Z"
+  },
+  "dhs_uflpa": {
+   "basis": "newest listing or Federal Register notice in the feed manifest",
+   "source": "https://www.dhs.gov/uflpa-entity-list",
+   "updated": "2026-10-29T00:00:00Z"
+  },
+  "dod_1260h": {
+   "basis": "newest listing or Federal Register notice in the feed manifest",
+   "source": "Federal Register, DoD notices under Section 1260H",
+   "updated": "2026-11-10T00:00:00Z"
+  },
+  "far_889": {
+   "basis": "newest listing or Federal Register notice in the feed manifest",
+   "source": "eCFR, 48 CFR 52.204-25",
+   "updated": "2019-08-13T00:00:00Z"
+  },
+  "fcc_covered": {
+   "basis": "newest listing or Federal Register notice in the feed manifest",
+   "source": "https://www.fcc.gov/supplychain/coveredlist",
+   "updated": "2026-07-28T00:00:00Z"
+  },
+  "ofac_nonsdn": {
+   "basis": "Last-Modified of the OFAC Sanctions List Service file",
+   "source": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/CONSOLIDATED.XML",
+   "updated": "2026-11-04T17:33:06Z"
+  },
+  "ofac_sdn": {
+   "basis": "Last-Modified of the OFAC Sanctions List Service file",
+   "source": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+   "updated": "2026-11-19T14:31:54Z"
+  }
+ },
+ "schema": 1
+}

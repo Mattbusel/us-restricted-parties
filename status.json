@@ -1,18 +1,18 @@
 {
  "schema": 1,
  "url": "https://raw.githubusercontent.com/Mattbusel/us-restricted-parties/status/status.json",
- "generated_at": "2026-11-20T15:26:56Z",
+ "generated_at": "2026-11-20T19:56:26Z",
  "ok": true,
  "build_ok": true,
  "job_status": "success",
- "run_url": "https://github.com/Mattbusel/us-restricted-parties/actions/runs/44762879491",
+ "run_url": "https://github.com/Mattbusel/us-restricted-parties/actions/runs/44806442435",
  "last_release_tag": "data-2026-11-20",
- "released_this_run": true,
- "lists_unchanged_since_last_release": false,
+ "released_this_run": false,
+ "lists_unchanged_since_last_release": true,
  "content_sha256": "6a69159298e31056ff79a18f3073b11b72a70cacb268d2e8c54ff0219d423da8",
  "lists": {
   "us_dod_1260h": {
-   "fetched_at": "2026-11-20T15:24:27Z",
+   "fetched_at": "2026-11-20T19:54:28Z",
    "upstream_ok": true,
    "rows": 186,
    "sha256": "bee51e5d6d70dbfd3533687d896cafd3baf3ef7e75ff632e4d39f24ae7377db5",
@@ -21,7 +21,7 @@
    "error": null
   },
   "us_far_889": {
-   "fetched_at": "2026-11-20T15:24:27Z",
+   "fetched_at": "2026-11-20T19:54:28Z",
    "upstream_ok": true,
    "rows": 5,
    "sha256": "8ed0b8e90bc512029c3cdb16592bd188ac987330bdc5d0e68bf5c6f0ddc9156b",
@@ -30,7 +30,7 @@
    "error": null
   },
   "us_fcc_covered": {
-   "fetched_at": "2026-11-20T15:24:27Z",
+   "fetched_at": "2026-11-20T19:54:28Z",
    "upstream_ok": true,
    "rows": 13,
    "sha256": "ee8563275cbf3caf1855d658e63a2a126db05d1d0e6857b717aaf07dcf0134c5",
@@ -39,7 +39,7 @@
    "error": null
   },
   "us_dhs_uflpa": {
-   "fetched_at": "2026-11-20T15:24:27Z",
+   "fetched_at": "2026-11-20T19:54:28Z",
    "upstream_ok": true,
    "rows": 190,
    "sha256": "ecc55e47ecc08841bf8c15a06b01faa48d3698fee6b6eaf64757f8e85adde904",
@@ -48,7 +48,7 @@
    "error": null
   },
   "us_biosecure": {
-   "fetched_at": "2026-11-20T15:24:27Z",
+   "fetched_at": "2026-11-20T19:54:28Z",
    "upstream_ok": true,
    "rows": 10,
    "sha256": "a206cedb0f3e7ed104871a0f40531c38fe601ea1c1cbafc530fd8e682610cf34",
@@ -63,7 +63,7 @@
   "stale": false,
   "data_date": "2026-11-20",
   "rows": 177,
-  "sha256": "66c5a8601eb999b95565f24ac815cd7b761fc3e1925fd16d2a4ebeb57c1ab91c",
+  "sha256": "32b81443bec060d21f36d5ca9654610de0db452d2763474f37396cff54e14015",
   "gleif_route": "golden-copy",
   "gleif_coverage": "full",
   "error": null
