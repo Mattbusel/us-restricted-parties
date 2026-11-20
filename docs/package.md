@@ -7,7 +7,7 @@ sources, plus the derived affiliates (companies those parties own 50 percent or 
 standard-library module, Python 3.9+, typed, no dependencies.
 
 ```
-pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.6.0/us_restricted_parties-0.6.0-py3-none-any.whl"
+pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.7.0/us_restricted_parties-0.7.0-py3-none-any.whl"
 ```
 
 (`pip install us-restricted-parties` once the package is on PyPI. Or copy `src/us_restricted_parties/__init__.py`
@@ -32,3 +32,12 @@ Code MIT; data CC BY 4.0 ("US Restricted Parties feed by Tensorust LLC"). Result
 review, not a legal determination. Docs: [integration](https://github.com/Mattbusel/us-restricted-parties/blob/main/docs/integration.md),
 [lists and fields](https://github.com/Mattbusel/us-restricted-parties/blob/main/docs/lists.md),
 [maintenance](https://github.com/Mattbusel/us-restricted-parties/blob/main/docs/maintenance.md).
+
+Check that a screening tool actually has every US restricted list, current and with names (exit 1 when not):
+
+```
+us-restricted-parties coverage path/to/screening-tool
+```
+
+See [docs/coverage.md](https://github.com/Mattbusel/us-restricted-parties/blob/main/docs/coverage.md) and the GitHub
+Action `Mattbusel/us-restricted-parties@v0.7.0`.

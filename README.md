@@ -4,7 +4,18 @@
 [![test](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/test.yml/badge.svg)](https://github.com/Mattbusel/us-restricted-parties/actions/workflows/test.yml)
 [![latest data](https://img.shields.io/github/release-date/Mattbusel/us-restricted-parties?label=latest%20data)](https://github.com/Mattbusel/us-restricted-parties/releases/latest)
 
-Five US government lists decide whether a counterparty is a problem for federal contractors, grantees and importers, and none of them is in the trade.gov Consolidated Screening List; three are published only as prose in the Federal Register or as an HTML table. Measured on Nov 18 2026 against a 90.9K-star dashboard's OFAC and CSL index, 153 of 190 UFLPA entities and 75 of 186 DoD 1260H rows returned no match at all ([merged fix](https://github.com/koala73/worldmonitor/pull/10998)). Through one standard loader, all 207 DoD 1260H entities loaded with empty names, so a green screening job could not have matched one of them ([merged fix](https://github.com/moov-io/watchman/pull/1019)). This repo rebuilds the five lists every day from the official sources as Senzing-format JSON Lines, free for commercial use under CC BY 4.0.
+"Screened against sanctions" usually means screened against the lists that were easy to download. We built a check that fails a screen unless every US restricted list is there, current and has names, and ran it on 31 open-source name screens and sanctions datasets on GitHub on Nov 20 2026. All 31 failed. 22 had none of DoD 1260H, the FCC Covered List and the UFLPA Entity List. 20 never screen the BIS Entity List. A 29.7K-star KYC template filters its OpenSanctions query to topics that drop 3,691 export-control parties, Military End Users included. A 14.7K-star chain hardcodes an August copy of OFAC's addresses and misses three designated since. Before our [merged fix](https://github.com/koala73/worldmonitor/pull/10998), a 90.9K-star dashboard returned no match for 153 of 190 UFLPA entities; through one standard loader, all 207 DoD 1260H entities loaded with empty names ([merged fix](https://github.com/moov-io/watchman/pull/1019)). Both jobs went green.
+
+This repo is the fix for both halves. It rebuilds the five lists that are in neither OFAC nor the trade.gov Consolidated Screening List every day from the official sources (three of them exist only as Federal Register prose or an HTML table), as Senzing-format JSON Lines, free for commercial use under CC BY 4.0. And [`us-restricted-parties coverage`](docs/coverage.md) fails your build when a list is missing, older than the agency's last update, or loaded without names:
+
+```yaml
+- uses: actions/checkout@v4
+  with: { fetch-depth: 0 }
+- uses: Mattbusel/us-restricted-parties@v0.7.0   # OFAC SDN + non-SDN, CSL, BIS EL/MEU/UVL, 1260H, 889, FCC, UFLPA
+  with: { path: . }
+```
+
+Not legal advice; a list can be present and still be matched badly.
 
 | File | List | Official source | Records* |
 |---|---|---|---|
@@ -68,7 +79,7 @@ dated release and checking hashes: [docs/integration.md](docs/integration.md).
 ## Load it from Python or Go
 
 ```
-pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.6.0/us_restricted_parties-0.6.0-py3-none-any.whl"
+pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.7.0/us_restricted_parties-0.7.0-py3-none-any.whl"
 ```
 
 ```python
@@ -100,6 +111,15 @@ Each line is one Senzing record:
 ```
 
 `NAME_ORG` at the top level is the primary name, so readers that ignore `NAMES` still get it. `RECORD_ID`s are derived from the name and stay stable from build to build. `INCLUDES_AFFILIATES: true` marks entries whose listing covers unnamed subsidiaries or affiliates (Section 889, Hoshine, XPCC): screen those by ownership, not by name alone.
+
+## Check your screen's coverage
+
+```
+us-restricted-parties coverage path/to/screening-tool      # config, list directory, index dump or source tree
+us-restricted-parties coverage lists/ --skip far_889 --report coverage.json
+```
+
+Exit 1 when a required list is `missing`, `stale` or has `empty_names`; OpenSanctions scopes and topic filters are expanded to the lists they really return. Details, statuses and where the agency dates come from: [docs/coverage.md](docs/coverage.md).
 
 ## Check your own list
 

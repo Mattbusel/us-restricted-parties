@@ -111,6 +111,17 @@ jobs:
             git -C "$RUNNER_TEMP/hb" rm -rfq .
           fi
           cp "$RUNNER_TEMP/status.json" "$RUNNER_TEMP/hb/status.json"
+          # sources.json: each list's latest agency update (OFAC Sanctions List Service Last-Modified, the CSL's
+          # sources_used, the Federal Register notices in this run's manifest). `us-restricted-parties coverage` and
+          # the GitHub Action compare a screen's data dates against it. A failed read keeps the previous file.
+          man=(); [ -f dist/manifest.json ] && man=(--manifest dist/manifest.json)
+          if PYTHONPATH=src python -m us_restricted_parties coverage --print-sources "${man[@]}" > "$RUNNER_TEMP/sources.json" \
+             && jq -e '.lists.ofac_sdn.updated and .lists.dod_1260h.updated' "$RUNNER_TEMP/sources.json" >/dev/null; then
+            cp "$RUNNER_TEMP/sources.json" "$RUNNER_TEMP/hb/sources.json"
+          else
+            echo "::warning title=sources.json not refreshed::agency dates could not be read; keeping the previous sources.json"
+          fi
+          [ -f "$RUNNER_TEMP/hb/sources.json" ] && git -C "$RUNNER_TEMP/hb" add sources.json
           printf '%s\n' "# status" "" "Freshness heartbeat of the daily build, rewritten on every run. See" \
             "https://github.com/$GITHUB_REPOSITORY/blob/main/docs/status.md" > "$RUNNER_TEMP/hb/README.md"
           git -C "$RUNNER_TEMP/hb" add status.json README.md

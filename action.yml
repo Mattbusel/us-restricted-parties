@@ -1,0 +1,63 @@
+name: US restricted list coverage
+description: >-
+  Fail the job when a sanctions screen is missing a US restricted list (OFAC SDN and non-SDN, the trade.gov CSL,
+  BIS Entity List, MEU and Unverified List, DoD 1260H, Section 889, FCC Covered List, UFLPA, BIOSECURE once
+  published), runs on data older than the agency's last update, or loaded a list with empty names.
+author: Tensorust LLC
+branding:
+  icon: shield
+  color: red
+
+inputs:
+  path:
+    description: Space-separated files or directories to check (screening config, list directory, index dump, or the repo).
+    default: "."
+  skip:
+    description: Comma-separated list ids you do not need (see `us-restricted-parties coverage --list-ids`), e.g. far_889.
+    default: ""
+  require:
+    description: Comma-separated list ids to require instead of all of them.
+    default: ""
+  sources:
+    description: >-
+      sources.json file or URL with the agencies' latest update dates. Default: the copy the daily build of
+      Mattbusel/us-restricted-parties writes to its status branch.
+    default: ""
+  include-tests:
+    description: Count lists that appear only in tests and fixtures.
+    default: "false"
+  python-version:
+    description: Python used to run the check (standard library only).
+    default: "3.12"
+
+outputs:
+  report:
+    description: Path of the JSON report.
+    value: ${{ steps.check.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - id: check
+      shell: bash
+      env:
+        URP_PATHS: ${{ inputs.path }}
+        URP_SKIP: ${{ inputs.skip }}
+        URP_REQUIRE: ${{ inputs.require }}
+        URP_SOURCES: ${{ inputs.sources }}
+        URP_TESTS: ${{ inputs.include-tests }}
+        URP_SRC: ${{ github.action_path }}/src
+      run: |
+        set -u
+        read -r -a paths <<< "$URP_PATHS"
+        args=(--github)
+        [ -n "$URP_SKIP" ] && args+=(--skip "$URP_SKIP")
+        [ -n "$URP_REQUIRE" ] && args+=(--require "$URP_REQUIRE")
+        [ -n "$URP_SOURCES" ] && args+=(--sources "$URP_SOURCES")
+        [ "$URP_TESTS" = "true" ] && args+=(--include-tests)
+        report="$RUNNER_TEMP/us-restricted-coverage.json"
+        echo "report=$report" >> "$GITHUB_OUTPUT"
+        PYTHONPATH="$URP_SRC" python -m us_restricted_parties coverage "${paths[@]}" "${args[@]}" --report "$report"

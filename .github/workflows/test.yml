@@ -55,6 +55,31 @@ jobs:
           python -m pip install mypy
           python -m mypy --strict src/us_restricted_parties
 
+  action:
+    # The coverage GitHub Action (action.yml) against real excerpts: a full set passes, the CSL alone fails.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: every list present
+        uses: ./
+        with:
+          path: tests/fixtures/coverage/feed tests/fixtures/coverage/csl
+          sources: tests/fixtures/coverage/sources.json
+      - name: the CSL alone (must fail)
+        id: csl_only
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/coverage/csl
+          sources: tests/fixtures/coverage/sources.json
+      - name: the CSL alone failed on the four lists outside it
+        env:
+          OUTCOME: ${{ steps.csl_only.outcome }}
+          REPORT: ${{ steps.csl_only.outputs.report }}
+        run: |
+          test "$OUTCOME" = "failure"
+          jq -e '.failed | sort == ["dhs_uflpa","dod_1260h","far_889","fcc_covered"]' "$REPORT"
+
   go:
     runs-on: ubuntu-24.04
     defaults:

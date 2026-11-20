@@ -1,0 +1,140 @@
+{
+ "feed": "https://github.com/Mattbusel/us-restricted-parties",
+ "built_at": "2026-11-20T15:24:27Z",
+ "lists": {
+  "us_dod_1260h": {
+   "data_source": "US_DOD_1260H",
+   "name": "DoD Chinese Military Companies (Section 1260H)",
+   "operator": "Department of Defense, OUSD(A&S)",
+   "source": "Federal Register, DoD notices under Section 1260H",
+   "file": "us_dod_1260h.jsonl",
+   "records": 186,
+   "aliases": 97,
+   "names_sha256": "6388353496a5718a3ba185315417b0a1da1a2d063c2eeccbd7e24110c0e35645",
+   "latest_listing": "2026-06-10",
+   "fetched_at": "2026-11-20T15:24:27Z",
+   "data_as_of": "2026-11-20T15:24:27Z",
+   "notes": {
+    "base_notice": "2026-11571",
+    "base_date": "2026-06-10",
+    "removed_in_base": [
+     "Anhui Sun Create Electronics Co., Ltd.",
+     "China International Information Services Ltd.",
+     "China National Chemical Engineering Co., Ltd.",
+     "China Traffic Construction USA, Inc.",
+     "CNOOC China Limited (CNOOC China Ltd.)",
+     "CNOOC International Trading Co., Ltd. (CNOOC International Trading)",
+     "COSCO SHIPPING Finance Co., Ltd.",
+     "Costar Group Co., Ltd. (Costar)",
+     "GLARUN Technology Co., Ltd.",
+     "Taiji Computer Co., Ltd."
+    ],
+    "later_notices": [
+     {
+      "action": "removed",
+      "name": "WuXi AppTec Co., Ltd. (WuXi AppTec)",
+      "date": "2026-11-10",
+      "doc": "2026-22840",
+      "url": "https://www.federalregister.gov/documents/2026/11/10/2026-22840/notice-of-removal-of-designated-chinese-military-company"
+     }
+    ]
+   }
+  },
+  "us_far_889": {
+   "data_source": "US_FAR_889",
+   "name": "Section 889 covered telecommunications and video surveillance companies",
+   "operator": "FAR Council (FAR 52.204-25); OMB for grants (2 CFR 200.216)",
+   "source": "eCFR, 48 CFR 52.204-25",
+   "file": "us_far_889.jsonl",
+   "records": 5,
+   "aliases": 0,
+   "names_sha256": "b87a95947673d47f203f6e9e5c8505f3c1a0a9ea8cc462f67994be9479afe0ea",
+   "latest_listing": "2019-08-13",
+   "fetched_at": "2026-11-20T15:24:27Z",
+   "data_as_of": "2026-11-20T15:24:27Z",
+   "notes": {
+    "ecfr_as_of": "2026-11-18"
+   }
+  },
+  "us_fcc_covered": {
+   "data_source": "US_FCC_COVERED",
+   "name": "FCC Covered List (Secure and Trusted Communications Networks Act)",
+   "operator": "Federal Communications Commission, PSHSB",
+   "source": "https://www.fcc.gov/supplychain/coveredlist",
+   "file": "us_fcc_covered.jsonl",
+   "records": 13,
+   "aliases": 0,
+   "names_sha256": "f02610acf50117bbd4c7e57f936d6caa9ccba7176451a320e80990f3f309f07e",
+   "latest_listing": "2026-07-07",
+   "fetched_at": "2026-11-20T15:24:27Z",
+   "data_as_of": "2026-11-20T15:24:27Z",
+   "notes": {
+    "category_entries": [
+     {
+      "entry": "Foreign-produced advanced robotic devices, except advanced robotic devices which have been granted a Conditional Approval by DoW.",
+      "date": "2026-07-28",
+      "footnotes": [
+       "For purposes of inclusion of advanced robotic devices, we incorporate the definitions included in the associated National Security Determination."
+      ]
+     },
+     {
+      "entry": "Foreign-produced power inverters, except power inverters which have been granted a Conditional Approval by DoW or DHS.",
+      "date": "2026-07-28",
+      "footnotes": [
+       "For purposes of inclusion of power inverters, we incorporate the definitions included in the associated National Security Determination."
+      ]
+     },
+     {
+      "entry": "Routers produced in a foreign country, except routers which have been granted a Conditional Approval by DoW or DHS.",
+      "date": "2026-03-23",
+      "footnotes": [
+       "For purposes of inclusion of routers, we incorporate the definitions included in the associated National Security Determination."
+      ]
+     },
+     {
+      "entry": "Uncrewed aircraft systems (UAS) and UAS critical components produced in a foreign country—except: (a) UAS and UAS critical components included on the Defense Contract Management Agency's (DCMA's) Blue UAS Cleared List, until January 1, 2028, (b) UAS and UAS critical components that qualify as \"domestic end products\" under the Buy American Standard, 48 CFR 25.101(a), until January 1, 2028; (c) devi",
+      "date": "2025-12-22",
+      "footnotes": [
+       "For purposes of inclusion of UAS and UAS critical components, we incorporate the definitions included in the associated National Security Determination. #The \"Blue UAS List\" referred to in the National Security Determination is the combination of the \"Blue UAS Cleared List\" at https://bluelist.appsplatformportals.us/Cleared-List/ and the list of compliant UAS components and software at https://blu"
+      ]
+     }
+    ]
+   }
+  },
+  "us_dhs_uflpa": {
+   "data_source": "US_DHS_UFLPA",
+   "name": "UFLPA Entity List",
+   "operator": "DHS Forced Labor Enforcement Task Force",
+   "source": "https://www.dhs.gov/uflpa-entity-list",
+   "file": "us_dhs_uflpa.jsonl",
+   "records": 190,
+   "aliases": 131,
+   "names_sha256": "2b50c2cfc9f7d08dec973ca48b40ee472818a578937d45937a1b23cd015b16cb",
+   "latest_listing": "2026-10-29",
+   "fetched_at": "2026-11-20T15:24:27Z",
+   "data_as_of": "2026-11-20T15:24:27Z",
+   "notes": {
+    "source": "federal_register",
+    "notice": "2026-22094",
+    "list_as_of": "2026-10-29",
+    "dhs_error": "HTTPError: HTTP Error 403: Forbidden"
+   }
+  },
+  "us_biosecure": {
+   "data_source": "US_BIOSECURE",
+   "name": "BIOSECURE biotechnology companies of concern (interim)",
+   "operator": "OMB (list due Dec 18 2026); until then the Section 1260H biotechnology listings",
+   "source": "Derived from us_dod_1260h; Federal Register watched for the OMB list",
+   "file": "us_biosecure.jsonl",
+   "records": 10,
+   "aliases": 4,
+   "names_sha256": "aeb028241957df52994dc4ddf3552cda85e6fd1e687efaa6ba32549f07456606",
+   "latest_listing": "2026-06-10",
+   "fetched_at": "2026-11-20T15:24:27Z",
+   "data_as_of": "2026-11-20T15:24:27Z",
+   "notes": {
+    "omb_list_documents": []
+   }
+  }
+ }
+}

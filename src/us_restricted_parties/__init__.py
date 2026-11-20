@@ -38,7 +38,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 __all__ = [
     "__version__", "REPO", "LATEST", "RELEASES", "LISTS", "AFFILIATES", "CSV_FIELDS", "Record",
@@ -317,6 +317,10 @@ _AUTHORITY = {
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    args_in = sys.argv[1:] if argv is None else list(argv)
+    if args_in[:1] == ["coverage"]:  # us-restricted-parties coverage PATH...: see us_restricted_parties.coverage
+        from . import coverage
+        return coverage.main(args_in[1:])
     ap = argparse.ArgumentParser(prog="us-restricted-parties", description=(__doc__ or "").split("\n\n")[0])
     ap.add_argument("--version", action="version", version=f"us-restricted-parties {__version__}")
     ap.add_argument("--list", default="all", help="all (default) or one of: " + ", ".join(LISTS + AFFILIATES))
@@ -326,7 +330,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--cache-dir", help="keep release files here and reuse them (pinned releases never change)")
     ap.add_argument("--latest-release", action="store_true", help="print the latest data release tag and exit")
     ap.add_argument("--format", choices=("summary", "jsonl", "csv", "ftm"), default="summary")
-    args = ap.parse_args(argv)
+    args = ap.parse_args(args_in)
     out = sys.stdout
     try:
         if args.latest_release:

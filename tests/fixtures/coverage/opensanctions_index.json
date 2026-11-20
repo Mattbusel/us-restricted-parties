@@ -1,0 +1,165 @@
+{
+ "datasets": [
+  {
+   "name": "us_trade_csl",
+   "title": "US Trade Consolidated Screening List (CSL)",
+   "type": "source",
+   "last_change": "2026-11-19T16:42:34",
+   "last_export": "2026-11-20T15:53:06",
+   "collections": [
+    "default",
+    "maritime",
+    "us_sanctions",
+    "sanctions"
+   ]
+  },
+  {
+   "name": "us_sam_exclusions",
+   "title": "US SAM Procurement Exclusions",
+   "type": "source",
+   "last_change": "2026-11-20T07:59:04",
+   "last_export": "2026-11-20T07:59:04",
+   "collections": [
+    "default",
+    "debarment",
+    "crime",
+    "regulatory"
+   ]
+  },
+  {
+   "name": "sanctions",
+   "title": "Consolidated Sanctions",
+   "type": "collection",
+   "last_change": "2026-11-20T12:58:04",
+   "last_export": "2026-11-20T13:47:04",
+   "collections": null,
+   "children": [
+    "us_bis_denied",
+    "us_dhs_uflpa",
+    "us_dod_chinese_milcorps",
+    "us_ofac_cons",
+    "us_ofac_sdn",
+    "us_sanctions",
+    "us_trade_csl"
+   ]
+  },
+  {
+   "name": "us_fcc_covered_list",
+   "title": "US FCC Covered List",
+   "type": "source",
+   "last_change": "2026-11-19T16:42:31",
+   "last_export": "2026-11-19T18:06:05",
+   "collections": [
+    "default",
+    "debarment",
+    "crime",
+    "regulatory"
+   ]
+  },
+  {
+   "name": "default",
+   "title": "OpenSanctions Default",
+   "type": "collection",
+   "last_change": "2026-11-20T12:40:06",
+   "last_export": "2026-11-20T12:54:40",
+   "collections": null,
+   "children": [
+    "sanctions",
+    "us_bis_denied",
+    "us_dhs_uflpa",
+    "us_dod_chinese_milcorps",
+    "us_fcc_covered_list",
+    "us_ofac_cons",
+    "us_ofac_sdn",
+    "us_sam_exclusions",
+    "us_sanctions",
+    "us_trade_csl"
+   ]
+  },
+  {
+   "name": "us_dod_chinese_milcorps",
+   "title": "US DoD Chinese military companies",
+   "type": "source",
+   "last_change": "2026-11-09T15:04:36",
+   "last_export": "2026-11-19T15:39:23",
+   "collections": [
+    "default",
+    "debarment",
+    "us_sanctions",
+    "crime",
+    "regulatory",
+    "securities",
+    "sanctions"
+   ]
+  },
+  {
+   "name": "us_ofac_cons",
+   "title": "US OFAC Consolidated (non-SDN) List",
+   "type": "source",
+   "last_change": "2026-11-04T18:36:35",
+   "last_export": "2026-11-20T16:38:40",
+   "collections": [
+    "default",
+    "maritime",
+    "us_sanctions",
+    "securities",
+    "sanctions"
+   ]
+  },
+  {
+   "name": "us_ofac_sdn",
+   "title": "US OFAC Specially Designated Nationals (SDN) List",
+   "type": "source",
+   "last_change": "2026-11-19T16:10:05",
+   "last_export": "2026-11-20T16:18:01",
+   "collections": [
+    "default",
+    "maritime",
+    "us_sanctions",
+    "securities",
+    "sanctions"
+   ]
+  },
+  {
+   "name": "us_sanctions",
+   "title": "United States Sanctions",
+   "type": "collection",
+   "last_change": "2026-11-19T16:42:34",
+   "last_export": "2026-11-20T12:27:38",
+   "collections": null,
+   "children": [
+    "us_bis_denied",
+    "us_dhs_uflpa",
+    "us_dod_chinese_milcorps",
+    "us_ofac_cons",
+    "us_ofac_sdn",
+    "us_trade_csl"
+   ]
+  },
+  {
+   "name": "us_dhs_uflpa",
+   "title": "US UFLPA Entity List",
+   "type": "source",
+   "last_change": "2026-10-28T18:57:05",
+   "last_export": "2026-11-20T12:57:06",
+   "collections": [
+    "default",
+    "us_sanctions",
+    "securities",
+    "sanctions"
+   ]
+  },
+  {
+   "name": "us_bis_denied",
+   "title": "US BIS Denied Persons List",
+   "type": "source",
+   "last_change": "2026-11-17T16:57:43",
+   "last_export": "2026-11-20T16:57:05",
+   "collections": [
+    "default",
+    "us_sanctions",
+    "sanctions"
+   ]
+  }
+ ]
+}

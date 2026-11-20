@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.7.0 (2026-11-20)
+
+Why: "screened against sanctions" usually means screened against the lists that were easy to download, and nothing
+in a screening pipeline fails when a list is missing, behind the agency, or loaded without names. On Nov 20 2026 we
+ran the new check on 31 open-source name screens and sanctions datasets on GitHub: all 31 failed, 22 had none of DoD
+1260H, the FCC Covered List and the UFLPA Entity List, and 20 never screen the BIS Entity List. The loader and the
+data files are unchanged; this release adds the check.
+
+- `us-restricted-parties coverage PATH...` (module `us_restricted_parties.coverage`, standard library only): reads a
+  screening tool's config, list directory, index dump or whole source tree and reports each US restricted list as
+  `ok`, `declared`, `missing`, `stale`, `empty_names` or `not_published`. Exit 1 when a required list is missing,
+  stale or has records without names; 2 on bad input or when the agency dates cannot be read. Lists: OFAC SDN and
+  non-SDN, the trade.gov CSL, BIS Entity List, MEU and UVL, DoD 1260H, Section 889, FCC Covered List, UFLPA, and
+  BIOSECURE once OMB publishes it. `--skip`, `--require`, `--json`, `--report`, `--github`, `--list-ids`.
+- Data dates come from the file itself (OFAC XML publish date, the CSL's `sources_used`, FollowTheMoney `last_seen`,
+  this feed's `data_as_of`), a copy date named in the code, the last git commit, or the modification time. A shallow
+  clone cannot be dated and fails.
+- OpenSanctions scopes (`/match/default`, yente `scope`, `datasets/latest/<name>/`) are expanded through the
+  OpenSanctions index, and a literal topics filter drops the lists whose entities carry other topics (1260H and the
+  FCC Covered List are `debarment`, MEU and UVL `export.control`).
+- GitHub Action (`action.yml`): `uses: Mattbusel/us-restricted-parties@v0.7.0` with `path`, `skip`, `require`,
+  `sources`, `include-tests`; error annotations, a job-summary table, and the JSON report as output `report`.
+- The daily build writes `sources.json` (each list's latest agency update: OFAC Sanctions List Service
+  Last-Modified, the CSL's `sources_used`, the Federal Register notices in the manifest) to the `status` branch next
+  to `status.json`.
+- `docs/coverage.md`. README opens with the measured results.
+
 ## 0.6.1 (2026-11-18)
 
 - Freshness heartbeat. Every build run, including days with no list change, days an agency pull failed and runs

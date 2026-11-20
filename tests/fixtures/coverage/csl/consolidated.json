@@ -1,0 +1,268 @@
+{
+ "results": [
+  {
+   "source": "Specially Designated Nationals (SDN) - Treasury Department",
+   "name": "AEROCARIBBEAN AIRLINES",
+   "alt_names": [
+    "AERO-CARIBBEAN"
+   ],
+   "programs": [
+    "CUBA"
+   ],
+   "start_date": null,
+   "id": "36",
+   "country": null,
+   "source_list_url": "https://sanctionslist.ofac.treas.gov/Home/SdnList"
+  },
+  {
+   "source": "Specially Designated Nationals (SDN) - Treasury Department",
+   "name": "ANGLO-CARIBBEAN CO., LTD.",
+   "alt_names": [
+    "AVIA IMPORT"
+   ],
+   "programs": [
+    "CUBA"
+   ],
+   "start_date": null,
+   "id": "173",
+   "country": null,
+   "source_list_url": "https://sanctionslist.ofac.treas.gov/Home/SdnList"
+  },
+  {
+   "source": "Entity List (EL) - Bureau of Industry and Security",
+   "name": "Abdul Satar Ghoura",
+   "alt_names": null,
+   "programs": null,
+   "start_date": "2011-11-21",
+   "id": "b6e959b59898e975daaae8fae3a8da1ec522f9f888cafc0e6401a16d",
+   "country": null,
+   "source_list_url": "https://www.bis.gov/regulations/ear/744#supplement-4-744"
+  },
+  {
+   "source": "Entity List (EL) - Bureau of Industry and Security",
+   "name": "Afghan-German Construction Company",
+   "alt_names": null,
+   "programs": null,
+   "start_date": "2012-04-27",
+   "id": "eff72a1632af21c557fd1bfcef5f42e96de11993cca531be6b1731e9",
+   "country": null,
+   "source_list_url": "https://www.bis.gov/regulations/ear/744#supplement-4-744"
+  },
+  {
+   "source": "Military End User (MEU) List - Bureau of Industry and Security",
+   "name": "Academy of Aerospace Solid Propulsion Technology (AASPT)",
+   "alt_names": [],
+   "programs": null,
+   "start_date": "2020-12-23",
+   "id": "ebb648a4c4f14a3dbb22829dcbf84c33",
+   "country": null,
+   "source_list_url": "https://www.bis.gov/regulations/ear/744#supplement-7-744"
+  },
+  {
+   "source": "Military End User (MEU) List - Bureau of Industry and Security",
+   "name": "AECC Aero Science & Technology Co. Ltd.",
+   "alt_names": [],
+   "programs": null,
+   "start_date": "2020-12-23",
+   "id": "8c11ca124bd84988a741d8039a78751d",
+   "country": null,
+   "source_list_url": "https://www.bis.gov/regulations/ear/744#supplement-7-744"
+  },
+  {
+   "source": "Unverified List (UVL) - Bureau of Industry and Security",
+   "name": "Atlas Sanatgaran",
+   "alt_names": [],
+   "programs": null,
+   "start_date": null,
+   "id": "1b5979e8fd3920a1a0985bf5088dad930a6a5562d1513f9e4b015e42",
+   "country": null,
+   "source_list_url": "https://www.bis.gov/regulations/ear/744#supplement-6-744"
+  },
+  {
+   "source": "Unverified List (UVL) - Bureau of Industry and Security",
+   "name": "Iranian & Armenian",
+   "alt_names": [],
+   "programs": null,
+   "start_date": null,
+   "id": "4c49e6c66222d35e389a4d11a6c3779dd347f9c3a892c5e58209d20b",
+   "country": null,
+   "source_list_url": "https://www.bis.gov/regulations/ear/744#supplement-6-744"
+  },
+  {
+   "source": "Sectoral Sanctions Identifications List (SSI) - Treasury Department",
+   "name": "VTB BANK PUBLIC JOINT STOCK COMPANY",
+   "alt_names": [
+    "JSC VTB BANK",
+    "BANK VTB OPEN JOINT STOCK COMPANY",
+    "BANK VNESHNEY TORGOVLI OPEN JOINT STOCK COMPANY",
+    "BANK VNESHNEY TORGOVLI JOINT STOCK COMPANY",
+    "BANK VNESHNEI TORGOVLI RSFSR",
+    "BANK VNESHNEY TORGOVLI ROSSIYSKOY FEDERATSII CLOSED JOINT STOCK COMPANY",
+    "VNESHTORGBANK ROSSII CLOSED JOINT STOCK COMPANY",
+    "BANK VTB OAO",
+    "VTB Bank PAO",
+    "VTB BANK OAO",
+    "VTB Bank PJSC",
+    "Bank VTB Publichnoe Aktsionernoe Obshchestvo",
+    "VTB Bank",
+    "OAO Bank VTB",
+    "VTB Bank open joint stock company",
+    "Bank Vneshei Torgovli OAO",
+    "Bank Vneshnei Torgovli Rossiskoi Federatsii as a Private Joint Stock Company",
+    "OAO Vneshtorgbank",
+    "Bank of Foreign Trade of the Russian Federation",
+    "Bank for Foreign Trade of RSFSR",
+    "Vneshtorgbank of RSFSR",
+    "CJSC Bank for Foreign Trade of the Russian Federation",
+    "Russian Vneshtorgbank",
+    "Vneshtorgbank",
+    "OJSC CJSC Bank for Foreign Trade",
+    "Bank VTB PAO",
+    "JSC VTB Bank New Delhi Branch",
+    "VTB Bank PJSC Shanghai Branch"
+   ],
+   "programs": [
+    "UKRAINE-EO13662",
+    "RUSSIA-EO14024",
+    "IRAN-EO13902"
+   ],
+   "start_date": null,
+   "id": "17013",
+   "country": null,
+   "source_list_url": "https://sanctionslist.ofac.treas.gov/Home/ConsolidatedList"
+  },
+  {
+   "source": "Sectoral Sanctions Identifications List (SSI) - Treasury Department",
+   "name": "Joint Stock Company Russian Agricultural Bank",
+   "alt_names": [
+    "Russian Agricultural Bank",
+    "Russian Agricultural Bank Open Joint Stock Company",
+    "Rosselkhozbank",
+    "Russian Agricultural Bank OJSC",
+    "RusAg"
+   ],
+   "programs": [
+    "UKRAINE-EO13662",
+    "RUSSIA-EO14024"
+   ],
+   "start_date": null,
+   "id": "17014",
+   "country": null,
+   "source_list_url": "https://sanctionslist.ofac.treas.gov/Home/ConsolidatedList"
+  },
+  {
+   "source": "Non-SDN Chinese Military-Industrial Complex Companies List (CMIC) - Treasury Department",
+   "name": "China Telecom Corporation Limited",
+   "alt_names": [
+    "CHINA TELECOM",
+    "CHINA TELECOM CO., LTD",
+    "CHINA TELECOM CORP LTD"
+   ],
+   "programs": [
+    "CMIC-EO13959"
+   ],
+   "start_date": null,
+   "id": "30882",
+   "country": null,
+   "source_list_url": "https://sanctionslist.ofac.treas.gov/Home/ConsolidatedList"
+  },
+  {
+   "source": "Non-SDN Chinese Military-Industrial Complex Companies List (CMIC) - Treasury Department",
+   "name": "Aero Engine Corporation of China",
+   "alt_names": [
+    "Aero Engine Corp of China",
+    "AECC",
+    "CHINA AVIATION ENGINE GROUP CO., LTD"
+   ],
+   "programs": [
+    "CMIC-EO13959"
+   ],
+   "start_date": null,
+   "id": "30902",
+   "country": null,
+   "source_list_url": "https://sanctionslist.ofac.treas.gov/Home/ConsolidatedList"
+  }
+ ],
+ "search_performed_at": "2026-11-20T17:15:00.016354+00:00",
+ "sources_used": [
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-11-19T14:32:00+00:00",
+   "source": "Capta List (CAP) - Treasury Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-11-19T14:32:00+00:00",
+   "source": "Non-SDN Chinese Military-Industrial Complex Companies List (CMIC) - Treasury Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-04-28T12:39:28+00:00",
+   "source": "Denied Persons List (DPL) - Bureau of Industry and Security",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-07-24T00:00:00+00:00",
+   "source": "ITAR Debarred (DTC) - State Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-08-21T20:19:33+00:00",
+   "source": "Entity List (EL) - Bureau of Industry and Security",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-11-19T14:32:00+00:00",
+   "source": "Foreign Sanctions Evaders (FSE) - Treasury Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-10-02T14:20:52+00:00",
+   "source": "Nonproliferation Sanctions (ACN) - State Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-11-19T14:32:00+00:00",
+   "source": "Non-SDN Menu-Based Sanctions List (NS-MBS List) - Treasury Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-02-20T18:34:52+00:00",
+   "source": "Military End User (MEU) List - Bureau of Industry and Security",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-11-19T14:32:00+00:00",
+   "source": "Palestinian Legislative Council List (PLC) - Treasury Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-11-19T14:31:58+00:00",
+   "source": "Specially Designated Nationals (SDN) - Treasury Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-11-19T14:32:00+00:00",
+   "source": "Sectoral Sanctions Identifications List (SSI) - Treasury Department",
+   "import_rate": "Hourly"
+  },
+  {
+   "last_imported": "2026-11-20T17:15:00.016354+00:00",
+   "source_last_updated": "2026-02-10T23:02:53+00:00",
+   "source": "Unverified List (UVL) - Bureau of Industry and Security",
+   "import_rate": "Hourly"
+  }
+ ],
+ "total": 12
+}

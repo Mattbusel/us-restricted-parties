@@ -1,0 +1,63 @@
+{
+ "schema": 1,
+ "generated_at": "2026-11-20T18:02:07Z",
+ "lists": {
+  "ofac_nonsdn": {
+   "updated": "2026-11-04T17:33:06Z",
+   "source": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/CONSOLIDATED.XML",
+   "basis": "Last-Modified of the OFAC Sanctions List Service file"
+  },
+  "bis_entity": {
+   "updated": "2026-08-21T20:19:33Z",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "basis": "CSL sources_used: Entity List (EL) - Bureau of Industry and Security"
+  },
+  "bis_meu": {
+   "updated": "2026-02-20T18:34:52Z",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "basis": "CSL sources_used: Military End User (MEU) List - Bureau of Industry and Security"
+  },
+  "ofac_sdn": {
+   "updated": "2026-11-19T14:31:54Z",
+   "source": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
+   "basis": "Last-Modified of the OFAC Sanctions List Service file"
+  },
+  "bis_uvl": {
+   "updated": "2026-02-10T23:02:53Z",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "basis": "CSL sources_used: Unverified List (UVL) - Bureau of Industry and Security"
+  },
+  "csl": {
+   "updated": "2026-11-19T14:32:00Z",
+   "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
+   "basis": "newest source_last_updated in the CSL"
+  },
+  "dod_1260h": {
+   "updated": "2026-11-10T00:00:00Z",
+   "source": "Federal Register, DoD notices under Section 1260H",
+   "basis": "newest listing or Federal Register notice in the feed manifest"
+  },
+  "far_889": {
+   "updated": "2019-08-13T00:00:00Z",
+   "source": "eCFR, 48 CFR 52.204-25",
+   "basis": "newest listing or Federal Register notice in the feed manifest"
+  },
+  "fcc_covered": {
+   "updated": "2026-07-28T00:00:00Z",
+   "source": "https://www.fcc.gov/supplychain/coveredlist",
+   "basis": "newest listing or Federal Register notice in the feed manifest"
+  },
+  "dhs_uflpa": {
+   "updated": "2026-10-29T00:00:00Z",
+   "source": "https://www.dhs.gov/uflpa-entity-list",
+   "basis": "newest listing or Federal Register notice in the feed manifest"
+  },
+  "biosecure": {
+   "updated": null,
+   "source": "Derived from us_dod_1260h; Federal Register watched for the OMB list",
+   "basis": "OMB has not published its list (due Dec 18 2026)",
+   "published": false
+  }
+ },
+ "errors": {}
+}

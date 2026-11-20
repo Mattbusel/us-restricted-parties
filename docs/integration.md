@@ -25,7 +25,7 @@ compliance data warehouse.
 Python:
 
 ```
-pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.6.0/us_restricted_parties-0.6.0-py3-none-any.whl"
+pip install "us-restricted-parties @ https://github.com/Mattbusel/us-restricted-parties/releases/download/v0.7.0/us_restricted_parties-0.7.0-py3-none-any.whl"
 ```
 
 (`pip install us-restricted-parties` once it is on PyPI; or copy
