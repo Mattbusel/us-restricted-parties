@@ -1,6 +1,6 @@
 {
  "errors": {},
- "generated_at": "2026-11-20T19:56:29Z",
+ "generated_at": "2026-11-21T14:39:59Z",
  "lists": {
   "biosecure": {
    "basis": "OMB has not published its list (due Dec 18 2026)",
@@ -26,7 +26,7 @@
   "csl": {
    "basis": "newest source_last_updated in the CSL",
    "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
-   "updated": "2026-11-19T14:32:00Z"
+   "updated": "2026-11-20T20:32:31Z"
   },
   "dhs_uflpa": {
    "basis": "newest listing or Federal Register notice in the feed manifest",
@@ -56,7 +56,7 @@
   "ofac_sdn": {
    "basis": "Last-Modified of the OFAC Sanctions List Service file",
    "source": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-   "updated": "2026-11-19T14:31:54Z"
+   "updated": "2026-11-20T20:32:24Z"
   }
  },
  "schema": 1
