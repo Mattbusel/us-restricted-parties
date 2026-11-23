@@ -1,6 +1,6 @@
 {
  "errors": {},
- "generated_at": "2026-11-22T14:34:12Z",
+ "generated_at": "2026-11-23T18:03:30Z",
  "lists": {
   "biosecure": {
    "basis": "OMB has not published its list (due Dec 18 2026)",
@@ -56,7 +56,7 @@
   "ofac_sdn": {
    "basis": "Last-Modified of the OFAC Sanctions List Service file",
    "source": "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.CSV",
-   "updated": "2026-11-20T20:32:24Z"
+   "updated": "2026-11-23T17:32:46Z"
   }
  },
  "schema": 1
