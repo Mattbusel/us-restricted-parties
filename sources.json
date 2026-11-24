@@ -1,6 +1,6 @@
 {
  "errors": {},
- "generated_at": "2026-11-23T18:03:30Z",
+ "generated_at": "2026-11-24T17:41:02Z",
  "lists": {
   "biosecure": {
    "basis": "OMB has not published its list (due Dec 18 2026)",
@@ -11,7 +11,7 @@
   "bis_entity": {
    "basis": "CSL sources_used: Entity List (EL) - Bureau of Industry and Security",
    "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
-   "updated": "2026-08-21T20:19:33Z"
+   "updated": "2026-11-23T21:06:43Z"
   },
   "bis_meu": {
    "basis": "CSL sources_used: Military End User (MEU) List - Bureau of Industry and Security",
@@ -26,7 +26,7 @@
   "csl": {
    "basis": "newest source_last_updated in the CSL",
    "source": "https://data.trade.gov/downloadable_consolidated_screening_list/v1/consolidated.json",
-   "updated": "2026-11-20T20:32:31Z"
+   "updated": "2026-11-23T21:06:43Z"
   },
   "dhs_uflpa": {
    "basis": "newest listing or Federal Register notice in the feed manifest",
